@@ -5,14 +5,21 @@
 //! hold. I honestly
 //! don't know if this is used anywhere outside of zfs.
 //! I only making this in order to work with ZFS, so if you need something that
-//! isn't here - PRs
-//! welcome.
+//! isn't here - PRs welcome. All insert operation clone values using `dup(2)` system call. So you
+//! don't have to worry about lifetime of the value. Unless you leak NvList yourself using `unsafe`
+//! you don't have to worry about anything. Once list goes out of scope it will call to C library
+//! to free all resources associated with it. `nvlist_take_*` and `nvlist_move_*` operations are
+//! not supported for this very reason.
+//!
 //! It's missing a few features:
+//!
 //!     - Sending to socket
 //!     - Receving from socket
 //!     - Insert/Remove file descriptors
 //!     - Insert/Remove binary
 //!     - Take operations
+//!     - Itertor interface
+//!
 //! [man_page]: https://www.freebsd.org/cgi/man.cgi?query=nv
 
 extern crate libc;
@@ -130,6 +137,8 @@ macro_rules! impl_list_op {
 
 /// Marker-ish trait to allow usage of insert method. Implement this for your
 /// own types if you don't want to convert to primitive types everytime.
+/// Types implementing this traist _MUST_ use `add_*` methods and `add_*` methods must use
+/// `nvlist_add_*` method.
 pub trait NvTypeOp {
     /// Add self to given list.
     fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()>;
