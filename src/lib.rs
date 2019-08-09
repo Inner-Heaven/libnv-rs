@@ -166,8 +166,8 @@ where
 {
     fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
         match self {
-            &Some(ref val) => val.add_to_list(list, name),
-            &None => list.insert_null(name),
+            Some(ref val) => val.add_to_list(list, name),
+            None => list.insert_null(name),
         }
     }
 }
@@ -186,7 +186,7 @@ impl Default for NvList {
 }
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
-    fn as_ptr(&self) -> *mut nvlist { self.ptr.clone() }
+    fn as_ptr(&self) -> *mut nvlist { self.ptr }
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
             errno if errno == 0 => Ok(()),
@@ -670,10 +670,10 @@ impl NvList {
                     nvlist_get_string_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
                 let slice = slice::from_raw_parts(arr as *const *const i8, len);
                 let strings = slice.iter()
-                                   .map(|ptr| *ptr)
+                                   .copied()
                                    .map(|ptr| CStr::from_ptr(ptr))
                                    .map(|cstr| cstr.to_string_lossy())
-                                   .map(|string| String::from(string))
+                                   .map(String::from)
                                    .collect();
                 Ok(Some(strings))
             } else {
