@@ -17,12 +17,12 @@
 //!
 //! It's missing a few features:
 //!
-//!     - Sending to socket
-//!     - Receving from socket
-//!     - Insert/Remove file descriptors
-//!     - Insert/Remove binary
-//!     - Take operations
-//!     - Itertor interface
+//! - Sending to socket
+//! - Receving from socket
+//! - Insert/Remove file descriptors
+//! - Insert/Remove binary
+//! - Take operations
+//! - Itertor interface
 //!
 //! [man_page]: https://www.freebsd.org/cgi/man.cgi?query=nv
 
@@ -487,14 +487,14 @@ impl NvList {
     /// Returns `true` if a name/value pair of the specified type exists and
     /// `false` otherwise.
     /// ```
-    /// use libnv::{NvList, NvFlag};
+    /// use libnv::{NvList, NvFlag, NvType};
     ///
     /// let mut list = NvList::new(NvFlag::Both).unwrap();
     ///
     /// let result = list.insert_number("Important year", 1776u64);
     /// assert!(result.is_ok());
     ///
-    /// assert!(!list.contains_key_with_type("Important year", NvType::Bool));
+    /// assert!(!list.contains_key_with_type("Important year", NvType::Bool).unwrap());
     /// ```
     pub fn contains_key_with_type(&self, name: &str, ty: NvType) -> NvResult<bool> {
         let c_name = CString::new(name)?;
