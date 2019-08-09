@@ -28,19 +28,17 @@
 
 extern crate libc;
 extern crate libnv_sys;
-#[macro_use]
-extern crate quick_error;
+#[macro_use] extern crate quick_error;
 
 use libc::ENOMEM;
 
 // Importing all because it's cold, I dont want to turn on heater and it's hard
 // to type.
 use libnv_sys::*;
-use std::convert::{From, Into};
-use std::ffi::{CStr, CString, NulError};
-use std::os::unix::io::AsRawFd;
-use std::slice;
-
+use std::{convert::{From, Into},
+          ffi::{CStr, CString, NulError},
+          os::unix::io::AsRawFd,
+          slice};
 
 quick_error! {
     #[derive(Debug)]
@@ -65,29 +63,29 @@ pub type NvResult<T> = Result<T, NvError>;
 #[derive(Copy, Clone, Debug)]
 pub enum NvType {
     /// Empty type
-    None = 0,
+    None            = 0,
     /// There is no associated data with the name
-    Null = 1,
+    Null            = 1,
     /// The value is a `bool` value
-    Bool = 2,
+    Bool            = 2,
     /// The value is a `u64` value
-    Number = 3,
+    Number          = 3,
     /// The value is a C string
-    String = 4,
+    String          = 4,
     /// The value is another `nvlist`
-    NvList = 5,
+    NvList          = 5,
     /// The value is a file descriptor
-    Descriptor = 6,
+    Descriptor      = 6,
     /// The value is a binary buffer
-    Binary = 7,
+    Binary          = 7,
     /// The value is an array of `bool` values
-    BoolArray = 8,
+    BoolArray       = 8,
     /// The value is an array of `u64` values
-    NumberArray = 9,
+    NumberArray     = 9,
     /// The value is an array of C strings
-    StringArray = 10,
+    StringArray     = 10,
     /// The value is an array of other `nvlist`'s
-    NvListArray = 11,
+    NvListArray     = 11,
     /// The value is an array of file descriptors
     DescriptorArray = 12,
 }
@@ -97,13 +95,13 @@ pub enum NvType {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
     /// No user specified options.
-    None = 0,
+    None       = 0,
     /// Perform case-insensitive lookups of provided names.
     IgnoreCase = 1,
     /// Names in the nvlist do not have to be unique.
-    NoUnique = 2,
+    NoUnique   = 2,
     /// Allow duplicate case-insensitive keys.
-    Both = 3,
+    Both       = 3,
 }
 
 impl From<i32> for NvFlag {
@@ -149,15 +147,15 @@ pub trait NvTypeOp {
     fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()>;
 }
 
-impl_list_op!{bool, insert_bool, false}
-impl_list_op!{[bool], insert_bools, true}
-impl_list_op!{u8, insert_number, false}
-impl_list_op!{u16, insert_number, false}
-impl_list_op!{u32, insert_number, false}
-impl_list_op!{u64, insert_number, false}
-impl_list_op!{[u64], insert_numbers, true}
-impl_list_op!{str, insert_string, true}
-impl_list_op!{NvList, insert_nvlist, true}
+impl_list_op! {bool, insert_bool, false}
+impl_list_op! {[bool], insert_bools, true}
+impl_list_op! {u8, insert_number, false}
+impl_list_op! {u16, insert_number, false}
+impl_list_op! {u32, insert_number, false}
+impl_list_op! {u64, insert_number, false}
+impl_list_op! {[u64], insert_numbers, true}
+impl_list_op! {str, insert_string, true}
+impl_list_op! {NvList, insert_nvlist, true}
 
 /// If `Some` insert content to the list. If `None` insert null.
 impl<T> NvTypeOp for Option<T>
@@ -178,7 +176,6 @@ pub struct NvList {
     ptr: *mut nvlist,
 }
 
-
 #[doc(hidden)]
 /// Return new list with no flags.
 impl Default for NvList {
@@ -187,6 +184,7 @@ impl Default for NvList {
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
     fn as_ptr(&self) -> *mut nvlist { self.ptr }
+
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
             errno if errno == 0 => Ok(()),
@@ -296,6 +294,7 @@ impl NvList {
         }
         self.check_if_error()
     }
+
     /// Add a number to the `NvList`. Number will be converted into u64.
     ///
     /// ```
@@ -312,6 +311,7 @@ impl NvList {
         }
         self.check_if_error()
     }
+
     /// Add a `bool` to the list.
     pub fn insert_bool(&mut self, name: &str, value: bool) -> NvResult<()> {
         let c_name = CString::new(name)?;
@@ -341,7 +341,6 @@ impl NvList {
     /// let other_list = NvList::default();
     ///
     /// list.insert_nvlist("other list", &other_list).unwrap();
-    ///
     /// ```
     pub fn insert_nvlist(&mut self, name: &str, value: &NvList) -> NvResult<()> {
         let c_name = CString::new(name)?;
@@ -389,7 +388,6 @@ impl NvList {
     /// let slice = [1776, 2017];
     ///
     /// list.insert_numbers("Important year", &slice);
-    ///
     /// ```
     pub fn insert_numbers(&mut self, name: &str, value: &[u64]) -> NvResult<()> {
         let c_name = CString::new(name)?;
@@ -416,19 +414,20 @@ impl NvList {
     /// ```
     pub fn insert_strings(&mut self, name: &str, value: &[&str]) -> NvResult<()> {
         let c_name = CString::new(name)?;
-        let strings: Vec<CString> =
-            value.iter()
-                 .map(|e| CString::new(*e))
-                 .map(|e| e.expect("Failed to convert str to Cstring"))
-                 .collect();
+        let strings: Vec<CString> = value
+            .iter()
+            .map(|e| CString::new(*e))
+            .map(|e| e.expect("Failed to convert str to Cstring"))
+            .collect();
         unsafe {
-            let pointers: Vec<*const i8> =
-                strings.iter().map(|e| e.as_ptr()).collect();
+            let pointers: Vec<*const i8> = strings.iter().map(|e| e.as_ptr()).collect();
 
-            nvlist_add_string_array(self.ptr,
-                                    c_name.as_ptr(),
-                                    pointers.as_slice().as_ptr(),
-                                    strings.len());
+            nvlist_add_string_array(
+                self.ptr,
+                c_name.as_ptr(),
+                pointers.as_slice().as_ptr(),
+                strings.len(),
+            );
         }
         self.check_if_error()
     }
@@ -455,13 +454,13 @@ impl NvList {
         let vec = value.to_vec();
         unsafe {
             let lists: Vec<*const nvlist> =
-                vec.iter()
-                   .map(|item| item.as_ptr() as *const nvlist)
-                   .collect();
-            nvlist_add_nvlist_array(self.ptr,
-                                    c_name.as_ptr(),
-                                    lists.as_slice().as_ptr(),
-                                    lists.len());
+                vec.iter().map(|item| item.as_ptr() as *const nvlist).collect();
+            nvlist_add_nvlist_array(
+                self.ptr,
+                c_name.as_ptr(),
+                lists.as_slice().as_ptr(),
+                lists.len(),
+            );
         }
         self.check_if_error()
     }
@@ -500,7 +499,6 @@ impl NvList {
         let c_name = CString::new(name)?;
         unsafe { Ok(nvlist_exists_type(self.ptr, c_name.as_ptr(), ty as i32)) }
     }
-
 
     /// Get the first matching `bool` value paired with
     /// the given name.
@@ -566,7 +564,6 @@ impl NvList {
             } else {
                 Ok(None)
             }
-
         }
     }
 
@@ -603,7 +600,6 @@ impl NvList {
             }
         }
     }
-
 
     /// Get a `&[bool]` from the `NvList`
     ///
@@ -660,7 +656,6 @@ impl NvList {
 
     /// Get a `Vec<String>` of the first string slice added to the `NvList`
     /// for the given name
-    ///
     pub fn get_strings(&self, name: &str) -> NvResult<Option<Vec<String>>> {
         let c_name = CString::new(name)?;
         unsafe {
@@ -669,12 +664,13 @@ impl NvList {
                 let arr =
                     nvlist_get_string_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
                 let slice = slice::from_raw_parts(arr as *const *const i8, len);
-                let strings = slice.iter()
-                                   .copied()
-                                   .map(|ptr| CStr::from_ptr(ptr))
-                                   .map(|cstr| cstr.to_string_lossy())
-                                   .map(String::from)
-                                   .collect();
+                let strings = slice
+                    .iter()
+                    .copied()
+                    .map(|ptr| CStr::from_ptr(ptr))
+                    .map(|cstr| cstr.to_string_lossy())
+                    .map(String::from)
+                    .collect();
                 Ok(Some(strings))
             } else {
                 Ok(None)
@@ -705,9 +701,7 @@ impl NvList {
                 let arr =
                     nvlist_get_nvlist_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
                 let slice = slice::from_raw_parts(arr as *const *const nvlist, len);
-                Ok(Some(slice.iter()
-                             .map(|item| NvList { ptr: nvlist_clone(*item) })
-                             .collect()))
+                Ok(Some(slice.iter().map(|item| NvList { ptr: nvlist_clone(*item) }).collect()))
             } else {
                 Ok(None)
             }
@@ -758,7 +752,6 @@ impl Clone for NvList {
     /// Clone list using libnv method. This will perform deep copy.
     fn clone(&self) -> NvList { NvList { ptr: unsafe { nvlist_clone(self.ptr) } } }
 }
-
 
 impl Drop for NvList {
     /// Using libnv method.
