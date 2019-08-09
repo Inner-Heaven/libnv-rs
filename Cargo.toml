@@ -1,8 +1,8 @@
 [package]
 name = "libnv"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Andrey Cherkashin <with.out@me.com>"]
-categories = ["api-bindings", "data-structures", "os"]
+categories = ["api-bindings", "data-structures", "os", "freebsd"]
 license = "BSD-2-Clause"
 description = "Safe and rustic wrapper around libnv-sys."
 repository = "https://github.com/Inner-Heaven/libnv-rs"
