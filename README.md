@@ -1,7 +1,7 @@
 ![libnv](libnv.png)
 
 [![Crates.io](https://img.shields.io/crates/v/libnv.svg)](https://crates.io/crates/libnv)
-> Rustic bindings to libnv.
+> Rust bindings to libnv.
 
 ## What's that?
 This library is safe rust bindings to FreeBSD's Name/value pairs library ([`libnv`](man)). It's poor's man `Map<&str,T>` where `T` could one of [a few lucky types](types).
