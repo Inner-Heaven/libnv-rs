@@ -4,7 +4,7 @@
 > Rustic bindings to libnv.
 
 ## What's that?
-This library is safe rust bindings to FreeBSD's Name/value pairs library ([`libnv`](man)). It's different from `libnvpair` from zfs project in a way that it has stable API.
+This library is safe rust bindings to FreeBSD's Name/value pairs library ([`libnv`](man)). It's different from `libnvpair` and probably aren't binary compatabile.
 You probably don't need it.
 ## Installation
 If you have FreeBSD you already have library available in base system. If don't — well... figure out how to install it and send me a PR?
