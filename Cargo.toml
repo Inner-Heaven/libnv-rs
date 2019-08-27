@@ -1,6 +1,6 @@
 [package]
 name = "libnv"
-version = "0.1.3"
+version = "0.1.4-pre"
 authors = ["Andrey Cherkashin <with.out@me.com>"]
 categories = ["api-bindings", "data-structures", "os"]
 license = "BSD-2-Clause"
