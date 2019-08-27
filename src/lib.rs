@@ -183,7 +183,7 @@ impl Default for NvList {
 }
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
-    fn as_ptr(&self) -> *mut nvlist { self.ptr }
+    pub fn as_ptr(&self) -> *mut nvlist { self.ptr }
 
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
@@ -640,7 +640,7 @@ impl NvList {
     /// assert_eq!(list.get_numbers("The Year").unwrap().unwrap(), &[1, 7, 7,
     /// 6]);
     /// ```
-    pub fn get_numbers<'a>(&'a self, name: &str) -> NvResult<Option<&'a [u64]>> {
+    pub fn get_numbers(&self, name: &str) -> NvResult<Option<&[u64]>> {
         let c_name = CString::new(name)?;
         unsafe {
             if nvlist_exists_number_array(self.ptr, c_name.as_ptr()) {
