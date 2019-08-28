@@ -16,8 +16,6 @@ pub enum NvEncoding {
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
-    /// No user specified options.
-    None       = 0,
     /// An existing pair of the same type will be removed prior inserting.
     UniqueName = 1,
     /// An existing pair of any type will be removed prior inserting.
@@ -39,7 +37,7 @@ impl Drop for NvList {
 
 /// Return new list with no flags.
 impl Default for NvList {
-    fn default() -> NvList { NvList::new(NvFlag::None).expect("Failed to create new list") }
+    fn default() -> NvList { NvList::new(NvFlag::UniqueNameType).expect("Failed to create new list") }
 }
 
 impl NvList {
