@@ -7,6 +7,11 @@ license = "BSD-2-Clause"
 description = "Safe and rustic wrapper around libnv-sys."
 repository = "https://github.com/Inner-Heaven/libnv-rs"
 
+[features]
+default = ["libnv", "nvpair"]
+libnv = ["libnv-sys"]
+nvpair = ["nvpair-sys"]
+
 [package.metadata.release]
 sign-commit = true
 upload-doc = false
@@ -14,5 +19,6 @@ dev-version-ext = "pre"
 
 [dependencies]
 libc = "0.2"
-libnv-sys = "0.1"
 quick-error = "1.2"
+nvpair-sys = { version = "0.1.0", optional = true }
+libnv-sys = { version = "0.1", optional = true }
