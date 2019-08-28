@@ -16,6 +16,8 @@ pub enum NvEncoding {
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
+    /// No flags. Allows duplicate names of any type, but renders `get_` methods useless.
+    None,
     /// An existing pair of the same type will be removed prior inserting.
     UniqueName = 1,
     /// An existing pair of any type will be removed prior inserting.
@@ -88,7 +90,7 @@ impl NvList {
             sys::nvlist_lookup_boolean_value(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
         };
         if errno != 0 {
-            Err(NvError::NativeError(errno))
+            Err(NvError::from_errno(errno))
         } else {
             let ret = unsafe {
                 ptr.assume_init()

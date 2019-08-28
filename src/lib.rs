@@ -34,8 +34,18 @@ quick_error! {
         }
         /// error return by ffi. See libc for more information.
         NativeError(code: i32) {}
-        /// If trying to set an error on n/v list that already has error
+        /// Trying to set an error on n/v list that already has error
         AlreadySet {}
+        /// No value found for given name.
+        NotFound {}
+    }
+}
+impl NvError {
+    pub fn from_errno(errno: i32) -> Self {
+        match errno {
+            libc::ENOENT => NvError::NotFound,
+            n => NvError::NativeError(n),
+        }
     }
 }
 
