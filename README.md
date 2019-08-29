@@ -6,7 +6,7 @@
 ## What's that?
 This library is safe rust bindings to FreeBSD's Name/value pairs library ([`libnv`](man)). It's poor's man `Map<&str,T>` where `T` could one of [a few lucky types](types).
 
-FreeBSD's `libnv` is not the same as `libnvpair` from zfs project and hey aren't binary comptabile.
+FreeBSD's `libnv` is not the same as `libnvpair` from zfs project and hey aren't binary compatible. `nvpairs` module poorly documented and poorly tested, might be even leaking memory on `get_*_array` operations.
 
 ## Installation
 If you have FreeBSD you already have library available in base system. If don't — well... figure out how to install it and send me a PR?

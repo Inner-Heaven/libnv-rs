@@ -106,11 +106,8 @@ macro_rules! impl_list_op {
     };
 }
 
-/// Marker-ish trait to allow usage of insert method. Implement this for your
-/// own types if you don't want to convert to primitive types everytime.
-/// Types implementing this traist _MUST_ use `add_*` methods and `add_*`
-/// methods must use
-/// `nvlist_add_*` method.
+/// This allows usage of insert method with basic types. Implement this for your
+/// own types if you don't want to convert to primitive types every time.
 pub trait NvTypeOp {
     /// Add self to given list.
     fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()>;

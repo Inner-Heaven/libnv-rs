@@ -4,6 +4,14 @@ use nvpair_sys as sys;
 
 use crate::{NvError, NvResult};
 use std::{ffi::CStr, ffi::CString, mem::MaybeUninit};
+use ::std::convert::TryInto;
+
+/// This allows usage of insert method with basic types. Implement this for your
+/// own types if you don't want to convert to primitive types every time.
+pub trait NvTypeOp {
+    /// Add self to given list.
+    fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()>;
+}
 
 #[repr(i32)]
 #[derive(Copy, Clone, Debug)]
@@ -38,6 +46,59 @@ impl Drop for NvList {
 impl Default for NvList {
     fn default() -> NvList {
         NvList::new(NvFlag::UniqueNameType).expect("Failed to create new list")
+    }
+}
+macro_rules! impl_list_op {
+    ($type_:ty, $method:ident, false) => {
+        impl NvTypeOp for $type_ {
+            /// Add a `$type_` value to the `NvList`
+            fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+                return list.$method(name, *self);
+            }
+        }
+    };
+    ($type_:ty, $method:ident, true) => {
+        impl NvTypeOp for $type_ {
+            /// Add a `$type_` value to the `NvList`
+            fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+                return list.$method(name, &*self);
+            }
+        }
+    };
+}
+
+macro_rules! nvpair_type_array_method {
+    ($type_:ty, $rmethod_insert:ident, $smethod_insert:ident, $rmethod_get:ident, $smethod_get:ident) => {
+        /// Add `&[$type_]` value to the list.
+        pub fn $rmethod_insert(&mut self, name: &str, value: &mut [$type_]) -> NvResult<()> {
+            let c_name = CString::new(name)?;
+            let errno = unsafe { sys::$smethod_insert(self.ptr, c_name.as_ptr(), value.as_mut_ptr(), value.len() as u32) };
+            if errno != 0 {
+                Err(NvError::from_errno(errno))
+            } else {
+                Ok(())
+            }
+        }
+
+                /// Get a `$type_` value by given name from the list.
+        pub fn $rmethod_get<'a>(&'a self, name: &str) -> NvResult<&'a [$type_]> {
+            let c_name = CString::new(name)?;
+            let mut ptr = MaybeUninit::<*mut _>::zeroed();
+            let mut len = 0;
+            let errno = unsafe {
+                sys::$smethod_get(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr(), &mut len)
+            };
+            if errno != 0 {
+                Err(NvError::from_errno(errno))
+            } else {
+                let ret = unsafe {
+                    ptr.assume_init();
+                    dbg!(len);
+                    std::slice::from_raw_parts(*ptr.as_mut_ptr(), len.try_into().unwrap())
+                 };
+                Ok(ret)
+            }
+        }
     }
 }
 macro_rules! nvpair_type_method {
@@ -93,7 +154,9 @@ impl NvList {
         let ret = unsafe { sys::nvlist_exists(self.as_ptr(), c_name.as_ptr()) };
         Ok(ret != sys::boolean::B_FALSE)
     }
-
+    pub fn insert<T: NvTypeOp>(&mut self, name: &str, value: T) -> NvResult<()> {
+        value.add_to_list(self, name)
+    }
     /// Add a `bool` to the list.
     pub fn insert_bool(&mut self, name: &str, value: bool) -> NvResult<()> {
         let c_name = CString::new(name)?;
@@ -165,7 +228,27 @@ impl NvList {
     nvpair_type_method!(u32, insert_u32, nvlist_add_uint32, get_u32, nvlist_lookup_uint32);
     nvpair_type_method!(i64, insert_i64, nvlist_add_int64, get_i64, nvlist_lookup_int64);
     nvpair_type_method!(u64, insert_u64, nvlist_add_uint64, get_u64, nvlist_lookup_uint64);
+    nvpair_type_array_method!(i8, insert_i8_array, nvlist_add_int8_array, get_i8_array, nvlist_lookup_int8_array);
+    nvpair_type_array_method!(u8, insert_u8_array, nvlist_add_uint8_array, get_u8_array, nvlist_lookup_uint8_array);
+    nvpair_type_array_method!(i16, insert_i16_array, nvlist_add_int16_array, get_i16_array, nvlist_lookup_int16_array);
+    nvpair_type_array_method!(u16, insert_u16_array, nvlist_add_uint16_array, get_u16_array, nvlist_lookup_uint16_array);
+    nvpair_type_array_method!(i32, insert_i32_array, nvlist_add_int32_array, get_i32_array, nvlist_lookup_int32_array);
+    nvpair_type_array_method!(u32, insert_u32_array, nvlist_add_uint32_array, get_u32_array, nvlist_lookup_uint32_array);
+    nvpair_type_array_method!(i64, insert_i64_array, nvlist_add_int64_array, get_i64_array, nvlist_lookup_int64_array);
+    nvpair_type_array_method!(u64, insert_u64_array, nvlist_add_uint64_array, get_u64_array, nvlist_lookup_uint64_array);
 }
+
+
+impl_list_op!{bool, insert_bool, false}
+impl_list_op!{i8, insert_i8, false}
+impl_list_op!{u8, insert_u8, false}
+impl_list_op!{i16, insert_i16, false}
+impl_list_op!{u16, insert_u16, false}
+impl_list_op!{i32, insert_i32, false}
+impl_list_op!{u32, insert_u32, false}
+impl_list_op!{i64, insert_i64, false}
+impl_list_op!{u64, insert_u64, false}
+impl_list_op!{&str, insert_string, false}
 
 #[cfg(test)]
 mod test {
@@ -182,6 +265,75 @@ mod test {
         assert!(list.exists("does_it_work").unwrap());
     }
     #[test]
+    fn nvop_boolean() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", true).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+    #[test]
+    fn nvop_string() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", "yay").unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_i8() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as i8).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_u8() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as u8).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_i16() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as i16).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_u16() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as u16).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_i32() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as i32).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_u32() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as u32).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_i64() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as i64).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_u64() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", 5 as u64).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
     fn cr_i8() {
         let val = 4;
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
@@ -189,6 +341,7 @@ mod test {
         let ret = list.get_i8("random").unwrap();
         assert_eq!(val, ret);
     }
+
     #[test]
     fn cr_u8() {
         let val = 4;
@@ -253,5 +406,88 @@ mod test {
         list.insert_string("is_it_ready?", val).unwrap();
         let ret = list.get_string("is_it_ready?").unwrap();
         assert_eq!(val, &ret);
+    }
+
+    #[test]
+    fn cr_i8_array() {
+        let mut val = [1,2,3,4 as i8];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_i8_array("works", &mut val as &mut [i8]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_i8_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+    #[test]
+    fn cr_u8_array() {
+        let mut val = [1,2,3,4 as u8];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_u8_array("works", &mut val as &mut [u8]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_u8_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+
+    #[test]
+    fn cr_i16_array() {
+        let mut val = [1,2,3,4 as i16];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_i16_array("works", &mut val as &mut [i16]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_i16_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+    #[test]
+    fn cr_u16_array() {
+        let mut val = [1,2,3,4 as u16];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_u16_array("works", &mut val as &mut [u16]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_u16_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+    #[test]
+    fn cr_i32_array() {
+        let mut val = [1,2,3,4 as i32];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_i32_array("works", &mut val as &mut [i32]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_i32_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+    #[test]
+    fn cr_u32_array() {
+        let mut val = [1,2,3,4 as u32];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_u32_array("works", &mut val as &mut [u32]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_u32_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+
+    #[test]
+    fn cr_i64_array() {
+        let mut val = [1,2,3,4 as i64];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_i64_array("works", &mut val as &mut [i64]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_i64_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
+    }
+    #[test]
+    fn cr_u64_array() {
+        let mut val = [1,2,3,4 as u64];
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_u64_array("works", &mut val as &mut [u64]).unwrap();
+        assert!(list.exists("works").unwrap());
+        let ret = list.get_u64_array("works").unwrap();
+        assert_eq!(4, ret.len());
+        assert_eq!(&val, &ret);
     }
 }
