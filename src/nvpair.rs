@@ -93,7 +93,6 @@ macro_rules! nvpair_type_array_method {
             } else {
                 let ret = unsafe {
                     ptr.assume_init();
-                    dbg!(len);
                     std::slice::from_raw_parts(*ptr.as_mut_ptr(), len.try_into().unwrap())
                  };
                 Ok(ret)

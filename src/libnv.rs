@@ -21,7 +21,7 @@ use libc::ENOMEM;
 
 // Importing all because it's cold, I dont want to turn on heater and it's hard
 // to type.
-use libnv_sys::*;
+use libnv_sys::{self, *};
 use std::{convert::{From, Into},
           ffi::{CStr, CString},
           os::unix::io::AsRawFd,
@@ -149,7 +149,7 @@ impl Default for NvList {
 }
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
-    pub fn as_ptr(&self) -> *mut nvlist { self.ptr }
+    pub fn as_ptr(&self) -> *mut self::nvlist { self.ptr }
 
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
@@ -442,11 +442,14 @@ impl NvList {
     /// let result = list.insert_number("Important year", 1776u64);
     /// assert!(result.is_ok());
     ///
-    /// assert!(list.contains_key("Important year").unwrap());
+    /// assert!(list.contains_key("Important year").expect("Failed to check existence"));
     /// ```
     pub fn contains_key(&self, name: &str) -> NvResult<bool> {
         let c_name = CString::new(name)?;
-        unsafe { Ok(nvlist_exists(self.ptr, c_name.as_ptr())) }
+        let ret = unsafe {
+            nvlist_exists(self.as_ptr(), c_name.as_ptr())
+        };
+        Ok(ret)
     }
 
     /// Returns `true` if a name/value pair of the specified type exists and
@@ -632,7 +635,7 @@ impl NvList {
                 let slice = slice::from_raw_parts(arr as *const *const i8, len);
                 let strings = slice
                     .iter()
-                    .copied()
+                    .map(|s| s.clone())
                     .map(|ptr| CStr::from_ptr(ptr))
                     .map(|cstr| cstr.to_string_lossy())
                     .map(String::from)
@@ -725,5 +728,20 @@ impl Drop for NvList {
         unsafe {
             nvlist_destroy(self.ptr);
         }
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_exists() {
+        let mut list = NvList::new(NvFlag::Both).unwrap();
+        let result = list.insert_number("Important year", 1776u64);
+        assert!(result.is_ok());
+
+        let res = list.contains_key("Important year");
+       // assert!(list.contains_key("Important year").expect("Failed to check existence"));
     }
 }
