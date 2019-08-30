@@ -38,5 +38,5 @@ jobs:
     - script: |
         CARGO=$(which cargo)
         sudo $CARGO build --release --features nvpair --no-default-features --example leak
-        sudo valgrind target/release/examples/leak
+        sudo valgrind --leak-check=full target/release/examples/leak
       displayName: Run Valgrind
