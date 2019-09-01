@@ -219,6 +219,24 @@ impl NvList {
             Ok(ret)
         }
     }
+    /// Get a `String` from the list.
+    pub fn get_str(&self, name: &str) -> NvResult<&str> {
+        let c_name = CString::new(name)?;
+        let mut ptr = MaybeUninit::<*mut _>::zeroed();
+        let errno = unsafe {
+            sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
+        };
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            let ret = unsafe {
+                ptr.assume_init();
+                let val = CStr::from_ptr(*ptr.as_ptr());
+                val.to_str()?
+            };
+            Ok(ret)
+        }
+    }
 
     nvpair_type_method!(i8, insert_i8, nvlist_add_int8, get_i8, nvlist_lookup_int8);
     nvpair_type_method!(u8, insert_u8, nvlist_add_uint8, get_u8, nvlist_lookup_uint8);
@@ -406,6 +424,9 @@ mod test {
         list.insert_string("is_it_ready?", val).unwrap();
         let ret = list.get_string("is_it_ready?").unwrap();
         assert_eq!(val, &ret);
+
+        let ret = list.get_str("is_it_ready?").unwrap();
+        assert_eq!(val, ret);
     }
 
     #[test]

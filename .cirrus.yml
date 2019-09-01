@@ -1,0 +1,20 @@
+task:
+  freebsd_instance:
+    matrix:
+      image: freebsd-12-0-release-amd64
+      image: freebsd-11-2-release-amd64
+  env:
+    CIRRUS_SHELL: /bin/sh
+    matrix:
+      - RUST_VERSION: stable
+      - RUST_VERSION: nightly
+      - RUST_VERSION: 1.36.0
+  install_script: |
+    pkg install -y curl
+    curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUST_VERSION
+    . $HOME/.cargo/env
+  cargo_cache:
+    folder: $HOME/.cargo/registry
+  build_script: env PATH="$HOME/.cargo/bin:$PATH" cargo build --all-features
+  test_script: mdconfig -a -s 96m -u1; env PATH="$HOME/.cargo/bin:$PATH" cargo test --all-features
+  before_cache_script: rm -rf $HOME/.cargo/registry/index
