@@ -3,7 +3,7 @@
 use nvpair_sys as sys;
 
 use crate::{NvError, NvResult};
-use std::{ffi::CStr, ffi::CString, mem::MaybeUninit};
+use std::{ffi::CStr, ffi::CString, mem::MaybeUninit, ptr::null_mut};
 use ::std::convert::TryInto;
 
 /// This allows usage of insert method with basic types. Implement this for your
@@ -83,17 +83,16 @@ macro_rules! nvpair_type_array_method {
                 /// Get a `$type_` value by given name from the list.
         pub fn $rmethod_get<'a>(&'a self, name: &str) -> NvResult<&'a [$type_]> {
             let c_name = CString::new(name)?;
-            let mut ptr = MaybeUninit::<*mut _>::zeroed();
+            let mut ptr = null_mut();
             let mut len = 0;
             let errno = unsafe {
-                sys::$smethod_get(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr(), &mut len)
+                sys::$smethod_get(self.ptr, c_name.as_ptr(), &mut ptr, &mut len)
             };
             if errno != 0 {
                 Err(NvError::from_errno(errno))
             } else {
                 let ret = unsafe {
-                    ptr.assume_init();
-                    std::slice::from_raw_parts(*ptr.as_mut_ptr(), len.try_into().unwrap())
+                    std::slice::from_raw_parts(&mut *ptr, len.try_into().unwrap())
                  };
                 Ok(ret)
             }
@@ -116,7 +115,7 @@ macro_rules! nvpair_type_method {
         /// Get a `$type_` value by given name from the list.
         pub fn $rmethod_get(&self, name: &str) -> NvResult<$type_> {
             let c_name = CString::new(name)?;
-            let mut ptr = MaybeUninit::<$type_>::zeroed();
+            let mut ptr = MaybeUninit::<$type_>::uninit();
             let errno = unsafe {
                 sys::$smethod_get(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
             };
@@ -177,7 +176,7 @@ impl NvList {
     /// Get a `bool` from the list.
     pub fn get_bool(&self, name: &str) -> NvResult<bool> {
         let c_name = CString::new(name)?;
-        let mut ptr = MaybeUninit::<sys::boolean::Type>::zeroed();
+        let mut ptr = MaybeUninit::<sys::boolean::Type>::uninit();
 
         let errno = unsafe {
             sys::nvlist_lookup_boolean_value(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
@@ -200,41 +199,29 @@ impl NvList {
             Ok(())
         }
     }
-    /// Get a `String` from the list.
-    pub fn get_string(&self, name: &str) -> NvResult<String> {
+
+    pub fn get_cstr(&self, name: &str) -> NvResult<&CStr> {
         let c_name = CString::new(name)?;
-        let mut ptr = MaybeUninit::<*mut _>::zeroed();
+        let mut ptr = null_mut();
         let errno = unsafe {
-            sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
+            sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), &mut ptr)
         };
         if errno != 0 {
             Err(NvError::from_errno(errno))
         } else {
             let ret = unsafe {
-                ptr.assume_init();
-                let val = CStr::from_ptr(*ptr.as_ptr());
-                val.to_str()?.to_owned()
+                CStr::from_ptr(&*ptr)
             };
             Ok(ret)
         }
     }
     /// Get a `String` from the list.
+    pub fn get_string(&self, name: &str) -> NvResult<String> {
+        self.get_str(name).map(str::to_owned)
+    }
+    /// Get a `String` from the list.
     pub fn get_str(&self, name: &str) -> NvResult<&str> {
-        let c_name = CString::new(name)?;
-        let mut ptr = MaybeUninit::<*mut _>::zeroed();
-        let errno = unsafe {
-            sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
-        };
-        if errno != 0 {
-            Err(NvError::from_errno(errno))
-        } else {
-            let ret = unsafe {
-                ptr.assume_init();
-                let val = CStr::from_ptr(*ptr.as_ptr());
-                val.to_str()?
-            };
-            Ok(ret)
-        }
+        self.get_cstr(name).and_then(|v| v.to_str().map_err(NvError::from))
     }
 
     nvpair_type_method!(i8, insert_i8, nvlist_add_int8, get_i8, nvlist_lookup_int8);
