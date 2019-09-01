@@ -7,5 +7,6 @@ pub fn main() {
     let result = list.insert_number("Important year", 1776u64);
     assert!(result.is_ok());
 
-    let res = list.contains_key("Important year");
+    let res = list.contains_key("Important year").unwrap();
+    println!("Important year: {}", res);
 }
