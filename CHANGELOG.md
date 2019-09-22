@@ -16,6 +16,6 @@
 
 
 
-# [0.2.0](https://github.com/Inner-Heaven/libnv-rs/compare/v0.1.3...v0.2.0) (2019-08-29)
+## [0.2.0](https://github.com/Inner-Heaven/libnv-rs/compare/v0.1.3...v0.2.0) (2019-08-29)
 
-* **nvpair:**: Basic nvpair functionality 
+* **nvpair:**: Basic nvpair functionality
