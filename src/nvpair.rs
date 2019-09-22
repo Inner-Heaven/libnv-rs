@@ -3,10 +3,12 @@
 use nvpair_sys as sys;
 
 use crate::{NvError, NvResult};
-use std::{ffi::CStr, ffi::CString, mem::MaybeUninit, ptr::null_mut};
-use ::std::convert::TryInto;
-use std::fmt::Formatter;
-use std::collections::HashMap;
+use std::{collections::HashMap,
+          convert::TryInto,
+          ffi::{CStr, CString},
+          fmt::Formatter,
+          mem::MaybeUninit,
+          ptr::null_mut};
 
 /// This allows usage of insert method with basic types. Implement this for your
 /// own types if you don't want to convert to primitive types every time.
@@ -77,54 +79,34 @@ impl Value {
 }
 
 impl From<i8> for Value {
-    fn from(src: i8) -> Self {
-        Value::Int8(src)
-    }
+    fn from(src: i8) -> Self { Value::Int8(src) }
 }
 impl From<u8> for Value {
-    fn from(src: u8) -> Self {
-        Value::Uint8(src)
-    }
+    fn from(src: u8) -> Self { Value::Uint8(src) }
 }
 impl From<i16> for Value {
-    fn from(src: i16) -> Self {
-        Value::Int16(src)
-    }
+    fn from(src: i16) -> Self { Value::Int16(src) }
 }
 impl From<u16> for Value {
-    fn from(src: u16) -> Self {
-        Value::Uint16(src)
-    }
+    fn from(src: u16) -> Self { Value::Uint16(src) }
 }
 impl From<i32> for Value {
-    fn from(src: i32) -> Self {
-        Value::Int32(src)
-    }
+    fn from(src: i32) -> Self { Value::Int32(src) }
 }
 impl From<u32> for Value {
-    fn from(src: u32) -> Self {
-        Value::Uint32(src)
-    }
+    fn from(src: u32) -> Self { Value::Uint32(src) }
 }
 impl From<i64> for Value {
-    fn from(src: i64) -> Self {
-        Value::Int64(src)
-    }
+    fn from(src: i64) -> Self { Value::Int64(src) }
 }
 impl From<u64> for Value {
-    fn from(src: u64) -> Self {
-        Value::Uint64(src)
-    }
+    fn from(src: u64) -> Self { Value::Uint64(src) }
 }
 impl From<String> for Value {
-    fn from(src: String) -> Self {
-        Value::String(src)
-    }
+    fn from(src: String) -> Self { Value::String(src) }
 }
 impl From<&str> for Value {
-    fn from(src: &str) -> Self {
-        Value::String(src.into())
-    }
+    fn from(src: &str) -> Self { Value::String(src.into()) }
 }
 pub struct NvList {
     ptr: *mut sys::nvlist_t,
@@ -222,6 +204,86 @@ macro_rules! nvpair_type_method {
 }
 
 impl NvList {
+    nvpair_type_method!(i8, insert_i8, nvlist_add_int8, get_i8, nvlist_lookup_int8);
+
+    nvpair_type_method!(u8, insert_u8, nvlist_add_uint8, get_u8, nvlist_lookup_uint8);
+
+    nvpair_type_method!(i16, insert_i16, nvlist_add_int16, get_i16, nvlist_lookup_int16);
+
+    nvpair_type_method!(u16, insert_u16, nvlist_add_uint16, get_u16, nvlist_lookup_uint16);
+
+    nvpair_type_method!(i32, insert_i32, nvlist_add_int32, get_i32, nvlist_lookup_int32);
+
+    nvpair_type_method!(u32, insert_u32, nvlist_add_uint32, get_u32, nvlist_lookup_uint32);
+
+    nvpair_type_method!(i64, insert_i64, nvlist_add_int64, get_i64, nvlist_lookup_int64);
+
+    nvpair_type_method!(u64, insert_u64, nvlist_add_uint64, get_u64, nvlist_lookup_uint64);
+
+    nvpair_type_array_method!(
+        i8,
+        insert_i8_array,
+        nvlist_add_int8_array,
+        get_i8_array,
+        nvlist_lookup_int8_array
+    );
+
+    nvpair_type_array_method!(
+        u8,
+        insert_u8_array,
+        nvlist_add_uint8_array,
+        get_u8_array,
+        nvlist_lookup_uint8_array
+    );
+
+    nvpair_type_array_method!(
+        i16,
+        insert_i16_array,
+        nvlist_add_int16_array,
+        get_i16_array,
+        nvlist_lookup_int16_array
+    );
+
+    nvpair_type_array_method!(
+        u16,
+        insert_u16_array,
+        nvlist_add_uint16_array,
+        get_u16_array,
+        nvlist_lookup_uint16_array
+    );
+
+    nvpair_type_array_method!(
+        i32,
+        insert_i32_array,
+        nvlist_add_int32_array,
+        get_i32_array,
+        nvlist_lookup_int32_array
+    );
+
+    nvpair_type_array_method!(
+        u32,
+        insert_u32_array,
+        nvlist_add_uint32_array,
+        get_u32_array,
+        nvlist_lookup_uint32_array
+    );
+
+    nvpair_type_array_method!(
+        i64,
+        insert_i64_array,
+        nvlist_add_int64_array,
+        get_i64_array,
+        nvlist_lookup_int64_array
+    );
+
+    nvpair_type_array_method!(
+        u64,
+        insert_u64_array,
+        nvlist_add_uint64_array,
+        get_u64_array,
+        nvlist_lookup_uint64_array
+    );
+
     /// Make a copy of a pointer. Danger zone.
     pub fn as_ptr(&self) -> *mut sys::nvlist_t { self.ptr }
 
@@ -234,16 +296,11 @@ impl NvList {
             Ok(NvList { ptr: raw_list })
         }
     }
-    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self {
-        Self {
-            ptr
-        }
-    }
+
+    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self { Self { ptr } }
+
     pub fn iter(&self) -> impl Iterator<Item = NvPairRef> + '_ {
-        NvListIter {
-            list: self,
-            position: null_mut(),
-        }
+        NvListIter { list: self, position: null_mut() }
     }
 
     pub fn into_hashmap(self) -> HashMap<String, Value> {
@@ -265,9 +322,11 @@ impl NvList {
         let ret = unsafe { sys::nvlist_exists(self.as_ptr(), c_name.as_ptr()) };
         Ok(ret != sys::boolean::B_FALSE)
     }
+
     pub fn insert<T: NvTypeOp>(&mut self, name: &str, value: T) -> NvResult<()> {
         value.add_to_list(self, name)
     }
+
     /// Add a `bool` to the list.
     pub fn insert_bool(&mut self, name: &str, value: bool) -> NvResult<()> {
         let c_name = CString::new(name)?;
@@ -301,6 +360,7 @@ impl NvList {
             Ok(ret != sys::boolean::B_FALSE)
         }
     }
+
     /// Add a `&str` to the list.
     pub fn insert_string(&mut self, name: &str, value: &str) -> NvResult<()> {
         let c_name = CString::new(name)?;
@@ -316,63 +376,43 @@ impl NvList {
     pub fn get_cstr(&self, name: &str) -> NvResult<&CStr> {
         let c_name = CString::new(name)?;
         let mut ptr = null_mut();
-        let errno = unsafe {
-            sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), &mut ptr)
-        };
+        let errno = unsafe { sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), &mut ptr) };
         if errno != 0 {
             Err(NvError::from_errno(errno))
         } else {
-            let ret = unsafe {
-                CStr::from_ptr(&*ptr)
-            };
+            let ret = unsafe { CStr::from_ptr(&*ptr) };
             Ok(ret)
         }
     }
+
     /// Get a `String` from the list.
     pub fn get_string(&self, name: &str) -> NvResult<String> {
         self.get_str(name).map(str::to_owned)
     }
+
     /// Get a `String` from the list.
     pub fn get_str(&self, name: &str) -> NvResult<&str> {
         self.get_cstr(name).and_then(|v| v.to_str().map_err(NvError::from))
     }
-
-    nvpair_type_method!(i8, insert_i8, nvlist_add_int8, get_i8, nvlist_lookup_int8);
-    nvpair_type_method!(u8, insert_u8, nvlist_add_uint8, get_u8, nvlist_lookup_uint8);
-    nvpair_type_method!(i16, insert_i16, nvlist_add_int16, get_i16, nvlist_lookup_int16);
-    nvpair_type_method!(u16, insert_u16, nvlist_add_uint16, get_u16, nvlist_lookup_uint16);
-    nvpair_type_method!(i32, insert_i32, nvlist_add_int32, get_i32, nvlist_lookup_int32);
-    nvpair_type_method!(u32, insert_u32, nvlist_add_uint32, get_u32, nvlist_lookup_uint32);
-    nvpair_type_method!(i64, insert_i64, nvlist_add_int64, get_i64, nvlist_lookup_int64);
-    nvpair_type_method!(u64, insert_u64, nvlist_add_uint64, get_u64, nvlist_lookup_uint64);
-    nvpair_type_array_method!(i8, insert_i8_array, nvlist_add_int8_array, get_i8_array, nvlist_lookup_int8_array);
-    nvpair_type_array_method!(u8, insert_u8_array, nvlist_add_uint8_array, get_u8_array, nvlist_lookup_uint8_array);
-    nvpair_type_array_method!(i16, insert_i16_array, nvlist_add_int16_array, get_i16_array, nvlist_lookup_int16_array);
-    nvpair_type_array_method!(u16, insert_u16_array, nvlist_add_uint16_array, get_u16_array, nvlist_lookup_uint16_array);
-    nvpair_type_array_method!(i32, insert_i32_array, nvlist_add_int32_array, get_i32_array, nvlist_lookup_int32_array);
-    nvpair_type_array_method!(u32, insert_u32_array, nvlist_add_uint32_array, get_u32_array, nvlist_lookup_uint32_array);
-    nvpair_type_array_method!(i64, insert_i64_array, nvlist_add_int64_array, get_i64_array, nvlist_lookup_int64_array);
-    nvpair_type_array_method!(u64, insert_u64_array, nvlist_add_uint64_array, get_u64_array, nvlist_lookup_uint64_array);
 }
 
-
-impl_list_op!{bool, insert_bool, false}
-impl_list_op!{i8, insert_i8, false}
-impl_list_op!{u8, insert_u8, false}
-impl_list_op!{i16, insert_i16, false}
-impl_list_op!{u16, insert_u16, false}
-impl_list_op!{i32, insert_i32, false}
-impl_list_op!{u32, insert_u32, false}
-impl_list_op!{i64, insert_i64, false}
-impl_list_op!{u64, insert_u64, false}
-impl_list_op!{&str, insert_string, false}
+impl_list_op! {bool, insert_bool, false}
+impl_list_op! {i8, insert_i8, false}
+impl_list_op! {u8, insert_u8, false}
+impl_list_op! {i16, insert_i16, false}
+impl_list_op! {u16, insert_u16, false}
+impl_list_op! {i32, insert_i32, false}
+impl_list_op! {u32, insert_u32, false}
+impl_list_op! {i64, insert_i64, false}
+impl_list_op! {u64, insert_u64, false}
+impl_list_op! {&str, insert_string, false}
 
 impl std::fmt::Debug for NvList {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map()
             .entries(
                 self.iter()
-                    .map(|ref pair| (pair.key().to_string_lossy().to_string(), pair.value()))
+                    .map(|ref pair| (pair.key().to_string_lossy().to_string(), pair.value())),
             )
             .finish()
     }
@@ -383,24 +423,16 @@ pub struct NvPairRef {
 }
 
 impl NvPairRef {
-    pub fn as_ptr(&self) -> *mut sys::nvpair_t {
-        self.ptr
-    }
-    pub unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self {
-        Self {
-            ptr
-        }
-    }
+    pub fn as_ptr(&self) -> *mut sys::nvpair_t { self.ptr }
 
-    pub fn key(&self) -> &CStr {
-        unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) }
-    }
+    pub unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self { Self { ptr } }
+
+    pub fn key(&self) -> &CStr { unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) } }
+
     pub fn value(&self) -> Value {
         let data_type = unsafe { sys::nvpair_type(self.as_ptr()) };
         match data_type {
-            sys::data_type_t::DATA_TYPE_BOOLEAN => {
-                Value::Bool(true)
-            },
+            sys::data_type_t::DATA_TYPE_BOOLEAN => Value::Bool(true),
             sys::data_type_t::DATA_TYPE_BOOLEAN_VALUE => {
                 let v = unsafe {
                     let mut ptr = MaybeUninit::<sys::boolean::Type>::uninit();
@@ -482,21 +514,18 @@ impl NvPairRef {
 
                 Value::String(v.to_string_lossy().to_string())
             },
-            _ => Value::Unknown
+            _ => Value::Unknown,
         }
     }
 }
 impl std::fmt::Debug for NvPairRef {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_tuple("NvPair")
-            .field(&self.key())
-            .field(&self.value())
-            .finish()
+        f.debug_tuple("NvPair").field(&self.key()).field(&self.value()).finish()
     }
 }
 
 pub struct NvListIter<'a> {
-    list:&'a NvList,
+    list:     &'a NvList,
     position: *mut sys::nvpair_t,
 }
 
@@ -677,7 +706,7 @@ mod test {
 
     #[test]
     fn cr_i8_array() {
-        let mut val = [1,2,3,4 as i8];
+        let mut val = [1, 2, 3, 4 as i8];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_i8_array("works", &mut val as &mut [i8]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -687,7 +716,7 @@ mod test {
     }
     #[test]
     fn cr_u8_array() {
-        let mut val = [1,2,3,4 as u8];
+        let mut val = [1, 2, 3, 4 as u8];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_u8_array("works", &mut val as &mut [u8]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -698,7 +727,7 @@ mod test {
 
     #[test]
     fn cr_i16_array() {
-        let mut val = [1,2,3,4 as i16];
+        let mut val = [1, 2, 3, 4 as i16];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_i16_array("works", &mut val as &mut [i16]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -708,7 +737,7 @@ mod test {
     }
     #[test]
     fn cr_u16_array() {
-        let mut val = [1,2,3,4 as u16];
+        let mut val = [1, 2, 3, 4 as u16];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_u16_array("works", &mut val as &mut [u16]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -718,7 +747,7 @@ mod test {
     }
     #[test]
     fn cr_i32_array() {
-        let mut val = [1,2,3,4 as i32];
+        let mut val = [1, 2, 3, 4 as i32];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_i32_array("works", &mut val as &mut [i32]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -728,7 +757,7 @@ mod test {
     }
     #[test]
     fn cr_u32_array() {
-        let mut val = [1,2,3,4 as u32];
+        let mut val = [1, 2, 3, 4 as u32];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_u32_array("works", &mut val as &mut [u32]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -739,7 +768,7 @@ mod test {
 
     #[test]
     fn cr_i64_array() {
-        let mut val = [1,2,3,4 as i64];
+        let mut val = [1, 2, 3, 4 as i64];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_i64_array("works", &mut val as &mut [i64]).unwrap();
         assert!(list.exists("works").unwrap());
@@ -749,7 +778,7 @@ mod test {
     }
     #[test]
     fn cr_u64_array() {
-        let mut val = [1,2,3,4 as u64];
+        let mut val = [1, 2, 3, 4 as u64];
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert_u64_array("works", &mut val as &mut [u64]).unwrap();
         assert!(list.exists("works").unwrap());
