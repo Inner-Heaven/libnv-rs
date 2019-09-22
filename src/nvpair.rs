@@ -5,6 +5,8 @@ use nvpair_sys as sys;
 use crate::{NvError, NvResult};
 use std::{ffi::CStr, ffi::CString, mem::MaybeUninit, ptr::null_mut};
 use ::std::convert::TryInto;
+use std::fmt::Formatter;
+use std::collections::HashMap;
 
 /// This allows usage of insert method with basic types. Implement this for your
 /// own types if you don't want to convert to primitive types every time.
@@ -33,7 +35,97 @@ pub enum NvFlag {
     UniqueNameType = 0b010,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Value {
+    Unknown,
+    Bool(bool),
+    Int8(i8),
+    Uint8(u8),
+    Int16(i16),
+    Uint16(u16),
+    Int32(i32),
+    Uint32(u32),
+    Int64(i64),
+    Uint64(u64),
+    String(String),
+}
+
+impl Value {
+    pub fn as_bool(&self) -> NvResult<bool> {
+        if let Value::Bool(val) = self {
+            Ok(val.clone())
+        } else {
+            Err(NvError::OperationNotSupported)
+        }
+    }
+
+    pub fn as_i8(&self) -> NvResult<i8> {
+        if let Value::Int8(val) = self {
+            Ok(val.clone())
+        } else {
+            Err(NvError::OperationNotSupported)
+        }
+    }
+
+    pub fn as_u8(&self) -> NvResult<u8> {
+        if let Value::Uint8(val) = self {
+            Ok(val.clone())
+        } else {
+            Err(NvError::OperationNotSupported)
+        }
+    }
+}
+
+impl From<i8> for Value {
+    fn from(src: i8) -> Self {
+        Value::Int8(src)
+    }
+}
+impl From<u8> for Value {
+    fn from(src: u8) -> Self {
+        Value::Uint8(src)
+    }
+}
+impl From<i16> for Value {
+    fn from(src: i16) -> Self {
+        Value::Int16(src)
+    }
+}
+impl From<u16> for Value {
+    fn from(src: u16) -> Self {
+        Value::Uint16(src)
+    }
+}
+impl From<i32> for Value {
+    fn from(src: i32) -> Self {
+        Value::Int32(src)
+    }
+}
+impl From<u32> for Value {
+    fn from(src: u32) -> Self {
+        Value::Uint32(src)
+    }
+}
+impl From<i64> for Value {
+    fn from(src: i64) -> Self {
+        Value::Int64(src)
+    }
+}
+impl From<u64> for Value {
+    fn from(src: u64) -> Self {
+        Value::Uint64(src)
+    }
+}
+impl From<String> for Value {
+    fn from(src: String) -> Self {
+        Value::String(src)
+    }
+}
+impl From<&str> for Value {
+    fn from(src: &str) -> Self {
+        Value::String(src.into())
+    }
+}
 pub struct NvList {
     ptr: *mut sys::nvlist_t,
 }
@@ -134,7 +226,7 @@ impl NvList {
     pub fn as_ptr(&self) -> *mut sys::nvlist_t { self.ptr }
 
     pub fn new(flags: NvFlag) -> NvResult<Self> {
-        let mut raw_list = std::ptr::null_mut();
+        let mut raw_list = null_mut();
         let errno = unsafe { sys::nvlist_alloc(&mut raw_list, flags as u32, 0) };
         if errno != 0 {
             Err(NvError::from_errno(errno))
@@ -142,6 +234,27 @@ impl NvList {
             Ok(NvList { ptr: raw_list })
         }
     }
+    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self {
+        Self {
+            ptr
+        }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = NvPairRef> + '_ {
+        NvListIter {
+            list: self,
+            position: null_mut(),
+        }
+    }
+
+    pub fn into_hashmap(self) -> HashMap<String, Value> {
+        let mut ret = HashMap::new();
+        for pair in self.iter() {
+            let key = pair.key().to_string_lossy().to_string();
+            ret.insert(key, pair.value());
+        }
+        ret
+    }
+
     pub fn is_empty(&self) -> bool {
         let ret = unsafe { sys::nvlist_empty(self.as_ptr()) };
         ret != sys::boolean::B_FALSE
@@ -253,6 +366,153 @@ impl_list_op!{u32, insert_u32, false}
 impl_list_op!{i64, insert_i64, false}
 impl_list_op!{u64, insert_u64, false}
 impl_list_op!{&str, insert_string, false}
+
+impl std::fmt::Debug for NvList {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_map()
+            .entries(
+                self.iter()
+                    .map(|ref pair| (pair.key().to_string_lossy().to_string(), pair.value()))
+            )
+            .finish()
+    }
+}
+
+pub struct NvPairRef {
+    ptr: *mut sys::nvpair_t,
+}
+
+impl NvPairRef {
+    pub fn as_ptr(&self) -> *mut sys::nvpair_t {
+        self.ptr
+    }
+    pub unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self {
+        Self {
+            ptr
+        }
+    }
+
+    pub fn key(&self) -> &CStr {
+        unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) }
+    }
+    pub fn value(&self) -> Value {
+        let data_type = unsafe { sys::nvpair_type(self.as_ptr()) };
+        match data_type {
+            sys::data_type_t::DATA_TYPE_BOOLEAN => {
+                Value::Bool(true)
+            },
+            sys::data_type_t::DATA_TYPE_BOOLEAN_VALUE => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<sys::boolean::Type>::uninit();
+                    sys::nvpair_value_boolean_value(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init() == sys::boolean::B_TRUE
+                };
+                Value::Bool(v)
+            },
+            sys::data_type_t::DATA_TYPE_INT8 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<i8>::uninit();
+                    sys::nvpair_value_int8(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Int8(v)
+            },
+            sys::data_type_t::DATA_TYPE_UINT8 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<u8>::uninit();
+                    sys::nvpair_value_uint8(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Uint8(v)
+            },
+            sys::data_type_t::DATA_TYPE_INT16 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<i16>::uninit();
+                    sys::nvpair_value_int16(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Int16(v)
+            },
+            sys::data_type_t::DATA_TYPE_UINT16 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<u16>::uninit();
+                    sys::nvpair_value_uint16(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Uint16(v)
+            },
+            sys::data_type_t::DATA_TYPE_INT32 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<i32>::uninit();
+                    sys::nvpair_value_int32(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Int32(v)
+            },
+            sys::data_type_t::DATA_TYPE_UINT32 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<u32>::uninit();
+                    sys::nvpair_value_uint32(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Uint32(v)
+            },
+            sys::data_type_t::DATA_TYPE_INT64 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<i64>::uninit();
+                    sys::nvpair_value_int64(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Int64(v)
+            },
+            sys::data_type_t::DATA_TYPE_UINT64 => {
+                let v = unsafe {
+                    let mut ptr = MaybeUninit::<u64>::uninit();
+                    sys::nvpair_value_uint64(self.as_ptr(), ptr.as_mut_ptr());
+                    ptr.assume_init()
+                };
+                Value::Uint64(v)
+            },
+            sys::data_type_t::DATA_TYPE_STRING => {
+                let v = unsafe {
+                    let mut ptr = null_mut();
+                    sys::nvpair_value_string(self.as_ptr(), &mut ptr);
+                    CStr::from_ptr(&*ptr)
+                };
+
+                Value::String(v.to_string_lossy().to_string())
+            },
+            _ => Value::Unknown
+        }
+    }
+}
+impl std::fmt::Debug for NvPairRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("NvPair")
+            .field(&self.key())
+            .field(&self.value())
+            .finish()
+    }
+}
+
+pub struct NvListIter<'a> {
+    list:&'a NvList,
+    position: *mut sys::nvpair_t,
+}
+
+impl<'a> Iterator for NvListIter<'a> {
+    type Item = NvPairRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = unsafe { sys::nvlist_next_nvpair(self.list.as_ptr(), self.position) };
+        self.position = next;
+        if next.is_null() {
+            None
+        } else {
+            Some(unsafe { NvPairRef::from_ptr(next) })
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -496,5 +756,53 @@ mod test {
         let ret = list.get_u64_array("works").unwrap();
         assert_eq!(4, ret.len());
         assert_eq!(&val, &ret);
+    }
+
+    #[test]
+    fn debug_list() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("u32", 1u32).unwrap();
+        list.insert("i8", 1i8).unwrap();
+        list.insert("string", "oh yeah").unwrap();
+        dbg!(&list); // make sure Debug is implemented
+
+        let mut iter = list.iter();
+
+        {
+            let el = iter.next().unwrap();
+            dbg!(&el);
+            let pair = (el.key().to_string_lossy().to_string(), el.value());
+            let expected_pair = (String::from("u32"), Value::from(1u32));
+            assert_eq!(expected_pair, pair);
+        }
+        {
+            let el = iter.next().unwrap();
+            dbg!(&el);
+            let pair = (el.key().to_string_lossy().to_string(), el.value());
+            let expected_pair = (String::from("i8"), Value::from(1i8));
+            assert_eq!(expected_pair, pair);
+        }
+        {
+            let el = iter.next().unwrap();
+            dbg!(&el);
+            let pair = (el.key().to_string_lossy().to_string(), el.value());
+            let expected_pair = (String::from("string"), Value::from("oh yeah"));
+            assert_eq!(expected_pair, pair);
+        }
+    }
+
+    #[test]
+    fn into_hash_map() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("u32", 1u32).unwrap();
+        list.insert("i8", 1i8).unwrap();
+        list.insert("string", "oh yeah").unwrap();
+
+        let mut expected_map = HashMap::with_capacity(3);
+        expected_map.insert(String::from("u32"), Value::from(1u32));
+        expected_map.insert(String::from("i8"), Value::from(1i8));
+        expected_map.insert(String::from("string"), Value::from("oh yeah"));
+
+        assert_eq!(expected_map, list.into_hashmap());
     }
 }
