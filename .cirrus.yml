@@ -1,14 +1,12 @@
 task:
   freebsd_instance:
     matrix:
-      image: freebsd-12-0-release-amd64
-      image: freebsd-11-2-release-amd64
+      image: freebsd-12-2-release-amd64
+      image: freebsd-13-0-release-amd64
   env:
     CIRRUS_SHELL: /bin/sh
     matrix:
       - RUST_VERSION: stable
-      - RUST_VERSION: nightly
-      - RUST_VERSION: 1.36.0
   install_script: |
     pkg install -y curl
     curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUST_VERSION
