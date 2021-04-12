@@ -314,13 +314,13 @@ impl NvList {
 
     pub fn is_empty(&self) -> bool {
         let ret = unsafe { sys::nvlist_empty(self.as_ptr()) };
-        ret != sys::boolean::B_FALSE
+        ret != sys::boolean_t::B_FALSE
     }
 
     pub fn exists(&self, name: &str) -> NvResult<bool> {
         let c_name = CString::new(name)?;
         let ret = unsafe { sys::nvlist_exists(self.as_ptr(), c_name.as_ptr()) };
-        Ok(ret != sys::boolean::B_FALSE)
+        Ok(ret != sys::boolean_t::B_FALSE)
     }
 
     pub fn insert<T: NvTypeOp>(&mut self, name: &str, value: T) -> NvResult<()> {
@@ -332,9 +332,9 @@ impl NvList {
         let c_name = CString::new(name)?;
         let v = {
             if value {
-                sys::boolean::B_TRUE
+                sys::boolean_t::B_TRUE
             } else {
-                sys::boolean::B_FALSE
+                sys::boolean_t::B_FALSE
             }
         };
         let errno = unsafe { sys::nvlist_add_boolean_value(self.ptr, c_name.as_ptr(), v) };
@@ -348,7 +348,7 @@ impl NvList {
     /// Get a `bool` from the list.
     pub fn get_bool(&self, name: &str) -> NvResult<bool> {
         let c_name = CString::new(name)?;
-        let mut ptr = MaybeUninit::<sys::boolean::Type>::uninit();
+        let mut ptr = MaybeUninit::<sys::boolean_t::Type>::uninit();
 
         let errno = unsafe {
             sys::nvlist_lookup_boolean_value(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
@@ -357,7 +357,7 @@ impl NvList {
             Err(NvError::from_errno(errno))
         } else {
             let ret = unsafe { ptr.assume_init() };
-            Ok(ret != sys::boolean::B_FALSE)
+            Ok(ret != sys::boolean_t::B_FALSE)
         }
     }
 
@@ -435,9 +435,9 @@ impl NvPairRef {
             sys::data_type_t::DATA_TYPE_BOOLEAN => Value::Bool(true),
             sys::data_type_t::DATA_TYPE_BOOLEAN_VALUE => {
                 let v = unsafe {
-                    let mut ptr = MaybeUninit::<sys::boolean::Type>::uninit();
+                    let mut ptr = MaybeUninit::<sys::boolean_t::Type>::uninit();
                     sys::nvpair_value_boolean_value(self.as_ptr(), ptr.as_mut_ptr());
-                    ptr.assume_init() == sys::boolean::B_TRUE
+                    ptr.assume_init() == sys::boolean_t::B_TRUE
                 };
                 Value::Bool(v)
             },
