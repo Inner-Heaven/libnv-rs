@@ -1,3 +1,10 @@
+## [0.2.3](https://github.com/Inner-Heaven/libnv-rs/compare/v0.2.2...v0.2.3) (2021-10-20)
+
+### Changes
+
+* chore(deps): Update nvpair-sys requirement from 0.1.0 to 0.4.0 (#9)
+* fix(nvpair): s/sys::boolean/sys::boolean_t/g
+
 ## [0.2.2](https://github.com/Inner-Heaven/libnv-rs/compare/v0.2.1...v0.2.2) (2019-09-22)
 
 
