@@ -9,7 +9,14 @@ use std::{collections::HashMap,
           fmt::Formatter,
           mem::MaybeUninit,
           ptr::null_mut};
+use std::os::unix::io::AsRawFd;
+use std::path::Path;
 
+
+
+extern "C" {
+    pub fn nvlist_print_json(fp: *mut libc::FILE, nvl: *const sys::nvlist_t) -> i32;
+}
 /// This allows usage of insert method with basic types. Implement this for your
 /// own types if you don't want to convert to primitive types every time.
 pub trait NvTypeOp {
@@ -328,7 +335,7 @@ impl NvList {
     }
 
     /// Add a `bool` to the list.
-    pub fn insert_bool(&mut self, name: &str, value: bool) -> NvResult<()> {
+    pub fn insert_boolean_value(&mut self, name: &str, value: bool) -> NvResult<()> {
         let c_name = CString::new(name)?;
         let v = {
             if value {
@@ -345,8 +352,20 @@ impl NvList {
         }
     }
 
+    /// Add a `bool` to the list.
+    pub fn insert_boolean(&mut self, name: &str) -> NvResult<()> {
+        let c_name = CString::new(name)?;
+        let errno = unsafe { sys::nvlist_add_boolean(self.ptr, c_name.as_ptr()) };
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            Ok(())
+        }
+    }
+
+
     /// Get a `bool` from the list.
-    pub fn get_bool(&self, name: &str) -> NvResult<bool> {
+    pub fn get_boolean_value(&self, name: &str) -> NvResult<bool> {
         let c_name = CString::new(name)?;
         let mut ptr = MaybeUninit::<sys::boolean_t::Type>::uninit();
 
@@ -360,6 +379,21 @@ impl NvList {
             Ok(ret != sys::boolean_t::B_FALSE)
         }
     }
+
+    /// Get a `bool` from the list.
+    pub fn get_boolean(&self, name: &str) -> NvResult<bool> {
+        let c_name = CString::new(name)?;
+
+        let errno = unsafe {
+            sys::nvlist_lookup_boolean(self.ptr, c_name.as_ptr())
+        };
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            Ok(true)
+        }
+    }
+
 
     /// Add a `&str` to the list.
     pub fn insert_string(&mut self, name: &str, value: &str) -> NvResult<()> {
@@ -394,9 +428,24 @@ impl NvList {
     pub fn get_str(&self, name: &str) -> NvResult<&str> {
         self.get_cstr(name).and_then(|v| v.to_str().map_err(NvError::from))
     }
+
+    /// Turn NvPair into json representation. This method uses libnvpair to do so.
+    pub fn save_as_json<F: AsRawFd>(&self, output: F) -> NvResult<()> {
+        let mode = CString::new("w").unwrap();
+        let file = unsafe { libc::fdopen(output.as_raw_fd(), mode.as_ptr()) };
+        let errno = unsafe { nvlist_print_json(file, self.ptr) };
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            unsafe {
+                libc::fflush(file);
+            }
+            Ok(())
+        }
+    }
 }
 
-impl_list_op! {bool, insert_bool, false}
+impl_list_op! {bool, insert_boolean_value, false}
 impl_list_op! {i8, insert_i8, false}
 impl_list_op! {u8, insert_u8, false}
 impl_list_op! {i16, insert_i16, false}
@@ -552,13 +601,13 @@ mod test {
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         assert!(list.is_empty());
         assert!(!list.exists("does_it_work").unwrap());
-        list.insert_bool("does_it_work", true).unwrap();
+        list.insert_boolean_value("does_it_work", true).unwrap();
         assert!(!list.is_empty());
-        assert!(list.get_bool("does_it_work").unwrap());
+        assert!(list.get_boolean_value("does_it_work").unwrap());
         assert!(list.exists("does_it_work").unwrap());
     }
     #[test]
-    fn nvop_boolean() {
+    fn nvop_boolean_value() {
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert("works", true).unwrap();
         assert!(list.exists("works").unwrap());
@@ -625,6 +674,15 @@ mod test {
         list.insert("works", 5 as u64).unwrap();
         assert!(list.exists("works").unwrap());
     }
+
+    #[test]
+    fn cr_boolean() {
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_boolean("random").expect("Failed to insert boolean");
+        let ret = list.get_boolean("random").unwrap();
+        assert_eq!(true, ret);
+    }
+
 
     #[test]
     fn cr_i8() {
