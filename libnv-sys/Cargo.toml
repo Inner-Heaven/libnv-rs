@@ -2,7 +2,7 @@
 name = "libnv-sys"
 version = "0.1.5"
 authors = ["Andrey Cherkashin <with.out@me.com>"]
-links = "libnvpair"
+links = "libnv"
 build = "build.rs"
 categories = ["external-ffi-bindings"]
 license = "BSD-2-Clause"
