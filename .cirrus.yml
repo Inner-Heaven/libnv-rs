@@ -5,8 +5,10 @@ task:
       image: freebsd-13-1-release-amd64
   env:
     CIRRUS_SHELL: /bin/sh
+    RUST_VERSION: stable
     matrix:
-      - RUST_VERSION: stable
+      FEATURES: libnv
+      FEATURES: nvpair
   install_script:
     - fetch https://sh.rustup.rs -o rustup.sh
     - sh rustup.sh -y --default-toolchain ${RUST_VERSION}
@@ -14,8 +16,8 @@ task:
     folder: $HOME/.cargo/registry
   build_script:
     - . $HOME/.cargo/env
-    - cargo build --all-features
+    - cargo build --no-default-features --features=$FEATURES
   test_script:
     - . $HOME/.cargo/env
-    - cargo test --all-features
+    - cargo test --no-default-features --features=$FEATURES
   before_cache_script: rm -rf $HOME/.cargo/registry/index
