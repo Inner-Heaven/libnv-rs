@@ -71,5 +71,4 @@ extern "C" {
                                -> *mut *mut nvlist;
     pub fn nvlist_free(list: *mut nvlist, name: *const i8) -> ();
     pub fn nvlist_free_type(list: *mut nvlist, name: *const i8, ty: i32) -> ();
-    pub fn strlen(target: *const i8) -> usize;
 }

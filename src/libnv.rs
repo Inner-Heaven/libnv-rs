@@ -524,8 +524,7 @@ impl NvList {
                 if ret.is_null() {
                     Ok(None)
                 } else {
-                    let len = strlen(ret);
-                    Ok(Some(String::from_raw_parts(ret as *mut u8, len, len)))
+                    Ok(Some(CStr::from_ptr(ret).to_string_lossy().into_owned()))
                 }
             } else {
                 Ok(None)
