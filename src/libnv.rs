@@ -24,6 +24,7 @@ use libc::ENOMEM;
 use libnv_sys::*;
 use std::{convert::{From, Into},
           ffi::{CStr, CString},
+          os::raw::c_void,
           os::unix::io::AsRawFd,
           slice};
 
@@ -319,9 +320,9 @@ impl NvList {
     }
 
     /// Add binary data to the list. TODO: make this safe.
-    pub unsafe fn add_binary(&mut self, name: &str, value: *mut i8, size: u32) -> NvResult<()> {
+    pub unsafe fn add_binary(&mut self, name: &str, value: *const i8, size: usize) -> NvResult<()> {
         let c_name = CString::new(name)?;
-        nvlist_add_binary(self.ptr, c_name.as_ptr(), value, size);
+        nvlist_add_binary(self.ptr, c_name.as_ptr(), value as *const c_void, size);
         self.check_if_error()
     }
 
@@ -691,7 +692,7 @@ impl NvList {
     }
 
     /// The size of the current list
-    pub fn len(&self) -> i32 { unsafe { nvlist_size(self.ptr) } }
+    pub fn len(&self) -> usize { unsafe { nvlist_size(self.ptr) } }
 
     /// Removes a key from the `NvList`.
     pub fn remove(&mut self, name: &str) -> NvResult<()> {
