@@ -48,6 +48,7 @@ quick_error! {
     }
 }
 impl NvError {
+    #[cfg(feature = "nvpair")]
     pub(crate) fn from_errno(errno: i32) -> Self {
         match errno {
             libc::ENOENT => NvError::NotFound,
