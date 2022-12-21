@@ -10,5 +10,14 @@ description = "FFI bindings to libnv."
 [lib]
 name = "libnv_sys"
 
+[package.metadata.docs.rs]
+targets = [
+  "x86_64-unknown-freebsd",
+]
+
 [dependencies]
 libc = "0.2"
+
+[build-dependencies]
+bindgen = { version = "0.60.0", features=[] }
+regex = "1.6.0"
