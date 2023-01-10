@@ -319,10 +319,20 @@ impl NvList {
         self.check_if_error()
     }
 
-    /// Add binary data to the list. TODO: make this safe.
+    /// Add binary data to the list.
+    #[deprecated(since = "0.4.0", note = "use insert_binary instead")]
     pub unsafe fn add_binary(&mut self, name: &str, value: *const i8, size: usize) -> NvResult<()> {
         let c_name = CString::new(name)?;
         nvlist_add_binary(self.ptr, c_name.as_ptr(), value as *const c_void, size);
+        self.check_if_error()
+    }
+
+    /// Add a byte array to the list.
+    pub fn insert_binary(&mut self, name: &str, value: &[u8]) -> NvResult<()> {
+        let c_name = CString::new(name)?;
+        unsafe {
+            nvlist_add_binary(self.ptr, c_name.as_ptr(), value.as_ptr() as *const c_void, value.len());
+        }
         self.check_if_error()
     }
 
@@ -465,6 +475,31 @@ impl NvList {
     pub fn contains_key_with_type(&self, name: &str, ty: NvType) -> NvResult<bool> {
         let c_name = CString::new(name)?;
         unsafe { Ok(nvlist_exists_type(self.ptr, c_name.as_ptr(), ty as i32)) }
+    }
+
+    /// Get the first matching byte slice value for the given name
+    ///
+    /// ```
+    /// use libnv::libnv::NvList;
+    ///
+    /// let x = [1, 2, 3, 4];
+    /// let mut list = NvList::default();
+    /// list.insert_binary("x", &x).unwrap();
+    ///
+    /// let v = list.get_binary("x").unwrap().unwrap();
+    /// assert_eq!(&x, v);
+    /// ```
+    pub fn get_binary(&self, name: &str) -> NvResult<Option<&[u8]>> {
+        let c_name = CString::new(name)?;
+        unsafe {
+            let mut size: usize = 0;
+            let ret = nvlist_get_binary(self.ptr, c_name.as_ptr(), &mut size as *mut usize);
+            if ret.is_null() {
+                Ok(None)
+            } else {
+                Ok(Some(slice::from_raw_parts(ret as *const u8, size)))
+            }
+        }
     }
 
     /// Get the first matching `bool` value paired with
