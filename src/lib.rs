@@ -1,12 +1,12 @@
 // #![deny(missing_docs)]
 
-//! Rust bindings to Name/Value pairs libraries [libnv](man_page) and [nvpair](zol_nvpair)
+//! Rust bindings to Name/Value pairs libraries [libnv] and [nvpair]
 //! It kinda acts like `Map<&str, T>` for poor people.
 //! Library split into two modules: `libnv` and `nvpairs`. `libnv` is FreeBSD implementation that
 //! isn't compatible with `nvpairs` that is Solaris implementation.
 //!
-//! [man_page]: https://www.freebsd.org/cgi/man.cgi?query=nv
-//! [zol_nvpair]: https://github.com/zfsonlinux/zfs/tree/master/module/nvpair
+//! [libnv]: https://www.freebsd.org/cgi/man.cgi?query=nv
+//! [nvpair]: https://github.com/zfsonlinux/zfs/tree/master/module/nvpair
 
 extern crate libc;
 #[macro_use] extern crate quick_error;
