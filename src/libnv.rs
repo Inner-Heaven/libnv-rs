@@ -176,6 +176,19 @@ impl NvList {
         }
     }
 
+    /// Take ownership of a raw NvList from C.
+    ///
+    /// # Safety
+    ///
+    /// This provided pointer must be valid, and after this function returns
+    /// nothing else may access the raw pointer except through the returned
+    /// object.
+    // Note: this cannot be `impl From<*mut nvlist_t> for Self` because that
+    // trait is only for safe conversions.
+    pub unsafe fn from_ptr(ptr: *mut nvlist_t) -> Self {
+        Self{ptr}
+    }
+
     /// Determines if the `nvlist` is empty.
     ///
     /// ```
