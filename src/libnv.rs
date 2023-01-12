@@ -140,7 +140,7 @@ where
 /// A list of name/value pairs.
 #[derive(Debug)]
 pub struct NvList {
-    ptr: *mut nvlist,
+    ptr: *mut nvlist_t,
 }
 
 #[doc(hidden)]
@@ -150,7 +150,7 @@ impl Default for NvList {
 }
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
-    pub fn as_ptr(&self) -> *mut nvlist { self.ptr }
+    pub fn as_ptr(&self) -> *mut nvlist_t { self.ptr }
 
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
@@ -420,8 +420,8 @@ impl NvList {
         let c_name = CString::new(name)?;
         let vec = value.to_vec();
         unsafe {
-            let lists: Vec<*const nvlist> =
-                vec.iter().map(|item| item.as_ptr() as *const nvlist).collect();
+            let lists: Vec<*const nvlist_t> =
+                vec.iter().map(|item| item.as_ptr() as *const nvlist_t).collect();
             nvlist_add_nvlist_array(
                 self.ptr,
                 c_name.as_ptr(),
@@ -666,7 +666,7 @@ impl NvList {
                 let mut len: usize = 0;
                 let arr =
                     nvlist_get_nvlist_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
-                let slice = slice::from_raw_parts(arr as *const *const nvlist, len);
+                let slice = slice::from_raw_parts(arr as *const *const nvlist_t, len);
                 Ok(Some(slice.iter().map(|item| NvList { ptr: nvlist_clone(*item) }).collect()))
             } else {
                 Ok(None)
@@ -725,5 +725,15 @@ impl Drop for NvList {
         unsafe {
             nvlist_destroy(self.ptr);
         }
+    }
+}
+
+impl From<NvList> for *mut nvlist_t {
+    /// Consume the wrapper and return a raw pointer to the inner structure.
+    /// Useful for FFI functions that expect to take ownership of the nvlist.
+    fn from(outer: NvList) -> *mut nvlist_t {
+        let r = outer.ptr;
+        std::mem::forget(outer);
+        r
     }
 }

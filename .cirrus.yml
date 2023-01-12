@@ -12,6 +12,7 @@ task:
   install_script:
     - fetch https://sh.rustup.rs -o rustup.sh
     - sh rustup.sh -y --default-toolchain ${RUST_VERSION}
+    - pkg install -y llvm
   cargo_cache:
     folder: $HOME/.cargo/registry
   build_script:

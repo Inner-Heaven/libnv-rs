@@ -7,6 +7,9 @@ license = "BSD-2-Clause"
 description = "Safe and rustic wrapper around libnv-sys."
 repository = "https://github.com/Inner-Heaven/libnv-rs"
 
+[workspace]
+members = [ ".", "libnv-sys" ]
+
 [package.metadata.release]
 dev-version-ext = "pre"
 
