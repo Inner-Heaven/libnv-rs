@@ -22,40 +22,43 @@ use libc::ENOMEM;
 // Importing all because it's cold, I dont want to turn on heater and it's hard
 // to type.
 use libnv_sys::*;
-use std::{convert::{From, Into},
-          ffi::{CStr, CString},
-          os::raw::c_void,
-          os::unix::io::AsRawFd,
-          slice};
+use std::{
+    convert::{From, Into},
+    ffi::CStr,
+    os::raw::c_void,
+    os::unix::io::AsRawFd,
+    slice,
+};
+use IntoCStr;
 
 use crate::{NvError, NvResult};
 
 /// Enumeration of available data types that the API supports.
 pub enum NvType {
     /// Empty type
-    None            = 0,
+    None = 0,
     /// There is no associated data with the name
-    Null            = 1,
+    Null = 1,
     /// The value is a `bool` value
-    Bool            = 2,
+    Bool = 2,
     /// The value is a `u64` value
-    Number          = 3,
+    Number = 3,
     /// The value is a C string
-    String          = 4,
+    String = 4,
     /// The value is another `nvlist`
-    NvList          = 5,
+    NvList = 5,
     /// The value is a file descriptor
-    Descriptor      = 6,
+    Descriptor = 6,
     /// The value is a binary buffer
-    Binary          = 7,
+    Binary = 7,
     /// The value is an array of `bool` values
-    BoolArray       = 8,
+    BoolArray = 8,
     /// The value is an array of `u64` values
-    NumberArray     = 9,
+    NumberArray = 9,
     /// The value is an array of C strings
-    StringArray     = 10,
+    StringArray = 10,
     /// The value is an array of other `nvlist`'s
-    NvListArray     = 11,
+    NvListArray = 11,
     /// The value is an array of file descriptors
     DescriptorArray = 12,
 }
@@ -65,13 +68,13 @@ pub enum NvType {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
     /// No user specified options.
-    None       = 0,
+    None = 0,
     /// Perform case-insensitive lookups of provided names.
     IgnoreCase = 1,
     /// Names in the nvlist do not have to be unique.
-    NoUnique   = 2,
+    NoUnique = 2,
     /// Allow duplicate case-insensitive keys.
-    Both       = 3,
+    Both = 3,
 }
 
 impl From<i32> for NvFlag {
@@ -92,7 +95,7 @@ macro_rules! impl_list_op {
     ($type_:ty, $method:ident, false) => {
         impl NvTypeOp for $type_ {
             /// Add a `$type_` value to the `NvList`
-            fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+            fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()> {
                 return list.$method(name, *self);
             }
         }
@@ -100,7 +103,7 @@ macro_rules! impl_list_op {
     ($type_:ty, $method:ident, true) => {
         impl NvTypeOp for $type_ {
             /// Add a `$type_` value to the `NvList`
-            fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+            fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()> {
                 return list.$method(name, &*self);
             }
         }
@@ -111,7 +114,7 @@ macro_rules! impl_list_op {
 /// own types if you don't want to convert to primitive types every time.
 pub trait NvTypeOp {
     /// Add self to given list.
-    fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()>;
+    fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()>;
 }
 
 impl_list_op! {bool, insert_bool, false}
@@ -129,7 +132,7 @@ impl<T> NvTypeOp for Option<T>
 where
     T: NvTypeOp,
 {
-    fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+    fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()> {
         match self {
             Some(ref val) => val.add_to_list(list, name),
             None => list.insert_null(name),
@@ -146,11 +149,15 @@ pub struct NvList {
 #[doc(hidden)]
 /// Return new list with no flags.
 impl Default for NvList {
-    fn default() -> NvList { NvList::new(NvFlag::None).expect("Failed to create new list") }
+    fn default() -> NvList {
+        NvList::new(NvFlag::None).expect("Failed to create new list")
+    }
 }
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
-    pub fn as_ptr(&self) -> *mut nvlist_t { self.ptr }
+    pub fn as_ptr(&self) -> *mut nvlist_t {
+        self.ptr
+    }
 
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
@@ -186,7 +193,7 @@ impl NvList {
     // Note: this cannot be `impl From<*mut nvlist_t> for Self` because that
     // trait is only for safe conversions.
     pub unsafe fn from_ptr(ptr: *mut nvlist_t) -> Self {
-        Self{ptr}
+        Self { ptr }
     }
 
     /// Determines if the `nvlist` is empty.
@@ -196,7 +203,9 @@ impl NvList {
     /// let nvlist = NvList::new(NvFlag::IgnoreCase).unwrap();
     /// assert!(nvlist.is_empty());
     /// ```
-    pub fn is_empty(&self) -> bool { unsafe { nvlist_empty(self.ptr) } }
+    pub fn is_empty(&self) -> bool {
+        unsafe { nvlist_empty(self.ptr) }
+    }
 
     /// The flags the `nvlist` was created with.
     ///
@@ -206,7 +215,9 @@ impl NvList {
     ///
     /// assert_eq!(nvlist.flags(), NvFlag::NoUnique);
     /// ```
-    pub fn flags(&self) -> NvFlag { NvFlag::from(unsafe { nvlist_flags(self.ptr) }) }
+    pub fn flags(&self) -> NvFlag {
+        NvFlag::from(unsafe { nvlist_flags(self.ptr) })
+    }
 
     /// Gets error value that the list may have accumulated.
     ///
@@ -216,7 +227,9 @@ impl NvList {
     ///
     /// assert_eq!(0, list.error());
     /// ```
-    pub fn error(&self) -> i32 { unsafe { nvlist_error(self.ptr) } }
+    pub fn error(&self) -> i32 {
+        unsafe { nvlist_error(self.ptr) }
+    }
 
     /// Sets the `NvList` to be in an error state.
     ///
@@ -256,7 +269,7 @@ impl NvList {
     ///
     /// assert_eq!(list.get_number("Important year").unwrap().unwrap(), 1776);
     /// ```
-    pub fn insert<T: NvTypeOp>(&mut self, name: &str, value: T) -> NvResult<()> {
+    pub fn insert<'a, N: IntoCStr<'a>, T: NvTypeOp>(&mut self, name: N, value: T) -> NvResult<()> {
         value.add_to_list(self, name)
     }
 
@@ -267,8 +280,8 @@ impl NvList {
     /// let mut list = NvList::new(NvFlag::Both).unwrap();
     /// list.insert_null("Hello, World!");
     /// ```
-    pub fn insert_null(&mut self, name: &str) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_null<'a, N: IntoCStr<'a>>(&mut self, name: N) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_add_null(self.ptr, c_name.as_ptr());
         }
@@ -284,8 +297,12 @@ impl NvList {
     ///
     /// list.insert_number("Important year", 1776u64);
     /// ```
-    pub fn insert_number<I: Into<u64>>(&mut self, name: &str, value: I) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_number<'a, N: IntoCStr<'a>, I: Into<u64>>(
+        &mut self,
+        name: N,
+        value: I,
+    ) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_add_number(self.ptr, c_name.as_ptr(), value.into());
         }
@@ -293,8 +310,8 @@ impl NvList {
     }
 
     /// Add a `bool` to the list.
-    pub fn insert_bool(&mut self, name: &str, value: bool) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_bool<'a, N: IntoCStr<'a>>(&mut self, name: N, value: bool) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_add_bool(self.ptr, c_name.as_ptr(), value);
         }
@@ -302,9 +319,13 @@ impl NvList {
     }
 
     /// Add string to the list.
-    pub fn insert_string(&mut self, name: &str, value: &str) -> NvResult<()> {
-        let c_name = CString::new(name)?;
-        let c_value = CString::new(value)?;
+    pub fn insert_string<'a, 'b, N: IntoCStr<'a>, V: IntoCStr<'b>>(
+        &mut self,
+        name: N,
+        value: V,
+    ) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
+        let c_value = value.into_c_str()?;
         unsafe {
             nvlist_add_string(self.ptr, c_name.as_ptr(), c_value.as_ptr());
         }
@@ -322,8 +343,8 @@ impl NvList {
     ///
     /// list.insert_nvlist("other list", &other_list).unwrap();
     /// ```
-    pub fn insert_nvlist(&mut self, name: &str, value: &NvList) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_nvlist<'a, N: IntoCStr<'a>>(&mut self, name: N, value: &NvList) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         if !value.as_ptr().is_null() {
             unsafe {
                 nvlist_add_nvlist(self.ptr, c_name.as_ptr(), value.as_ptr());
@@ -334,17 +355,27 @@ impl NvList {
 
     /// Add binary data to the list.
     #[deprecated(since = "0.4.0", note = "use insert_binary instead")]
-    pub unsafe fn add_binary(&mut self, name: &str, value: *const i8, size: usize) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub unsafe fn add_binary<'a, N: IntoCStr<'a>>(
+        &mut self,
+        name: N,
+        value: *const i8,
+        size: usize,
+    ) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         nvlist_add_binary(self.ptr, c_name.as_ptr(), value as *const c_void, size);
         self.check_if_error()
     }
 
     /// Add a byte array to the list.
-    pub fn insert_binary(&mut self, name: &str, value: &[u8]) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_binary<'a, N: IntoCStr<'a>>(&mut self, name: N, value: &[u8]) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
-            nvlist_add_binary(self.ptr, c_name.as_ptr(), value.as_ptr() as *const c_void, value.len());
+            nvlist_add_binary(
+                self.ptr,
+                c_name.as_ptr(),
+                value.as_ptr() as *const c_void,
+                value.len(),
+            );
         }
         self.check_if_error()
     }
@@ -360,8 +391,8 @@ impl NvList {
     ///
     /// list.insert_bools("Important year", &slice);
     /// ```
-    pub fn insert_bools(&mut self, name: &str, value: &[bool]) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_bools<'a, N: IntoCStr<'a>>(&mut self, name: N, value: &[bool]) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_add_bool_array(self.ptr, c_name.as_ptr(), value.as_ptr(), value.len());
         }
@@ -379,8 +410,8 @@ impl NvList {
     ///
     /// list.insert_numbers("Important year", &slice);
     /// ```
-    pub fn insert_numbers(&mut self, name: &str, value: &[u64]) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_numbers<'a, N: IntoCStr<'a>>(&mut self, name: N, value: &[u64]) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_add_number_array(self.ptr, c_name.as_ptr(), value.as_ptr(), value.len());
         }
@@ -396,19 +427,17 @@ impl NvList {
     ///
     /// let orig = ["Hello", "World!"];
     ///
-    /// list.insert_strings("key", &orig).unwrap();
+    /// list.insert_strings("key", orig).unwrap();
     ///
     /// let vec = list.get_strings("key").unwrap().unwrap();
     ///
     /// assert_eq!(*vec, ["Hello", "World!"]);
     /// ```
-    pub fn insert_strings(&mut self, name: &str, value: &[&str]) -> NvResult<()> {
-        let c_name = CString::new(name)?;
-        let strings: Vec<CString> = value
-            .iter()
-            .map(|e| CString::new(*e))
-            .map(|e| e.expect("Failed to convert str to Cstring"))
-            .collect();
+    pub fn insert_strings<'a, 'b, N: IntoCStr<'a>, V: IntoCStr<'b>, I: IntoIterator<Item=V>>(&mut self, name: N, value: I) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
+        let strings= value.into_iter()
+            .map(IntoCStr::into_c_str)
+            .collect::<NvResult<Vec<_>>>()?;
         unsafe {
             let pointers: Vec<*const i8> = strings.iter().map(|e| e.as_ptr()).collect();
 
@@ -439,8 +468,12 @@ impl NvList {
     ///
     /// assert_eq!(NvFlag::None, nvlists.pop().unwrap().flags());
     /// ```
-    pub fn insert_nvlists(&mut self, name: &str, value: &[NvList]) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_nvlists<'a, N: IntoCStr<'a>>(
+        &mut self,
+        name: N,
+        value: &[NvList],
+    ) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         let vec = value.to_vec();
         unsafe {
             let lists: Vec<*const nvlist_t> =
@@ -468,8 +501,8 @@ impl NvList {
     ///
     /// assert!(list.contains_key("Important year").unwrap());
     /// ```
-    pub fn contains_key(&self, name: &str) -> NvResult<bool> {
-        let c_name = CString::new(name)?;
+    pub fn contains_key<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<bool> {
+        let c_name = name.into_c_str()?;
         unsafe { Ok(nvlist_exists(self.ptr, c_name.as_ptr())) }
     }
 
@@ -485,8 +518,12 @@ impl NvList {
     ///
     /// assert!(!list.contains_key_with_type("Important year", NvType::Bool).unwrap());
     /// ```
-    pub fn contains_key_with_type(&self, name: &str, ty: NvType) -> NvResult<bool> {
-        let c_name = CString::new(name)?;
+    pub fn contains_key_with_type<'a, N: IntoCStr<'a>>(
+        &self,
+        name: N,
+        ty: NvType,
+    ) -> NvResult<bool> {
+        let c_name = name.into_c_str()?;
         unsafe { Ok(nvlist_exists_type(self.ptr, c_name.as_ptr(), ty as i32)) }
     }
 
@@ -502,8 +539,8 @@ impl NvList {
     /// let v = list.get_binary("x").unwrap().unwrap();
     /// assert_eq!(&x, v);
     /// ```
-    pub fn get_binary(&self, name: &str) -> NvResult<Option<&[u8]>> {
-        let c_name = CString::new(name)?;
+    pub fn get_binary<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<&[u8]>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             let mut size: usize = 0;
             let ret = nvlist_get_binary(self.ptr, c_name.as_ptr(), &mut size as *mut usize);
@@ -528,8 +565,8 @@ impl NvList {
     /// assert!(list.get_bool("Did history start on 1776?").unwrap().unwrap(),
     /// true);
     /// ```
-    pub fn get_bool(&self, name: &str) -> NvResult<Option<bool>> {
-        let c_name = CString::new(name)?;
+    pub fn get_bool<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<bool>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_bool(self.ptr, c_name.as_ptr()) {
                 Ok(Some(nvlist_get_bool(self.ptr, c_name.as_ptr())))
@@ -541,8 +578,8 @@ impl NvList {
 
     /// Get the first matching `u64` value paired with
     /// the given name.
-    pub fn get_number(&self, name: &str) -> NvResult<Option<u64>> {
-        let c_name = CString::new(name)?;
+    pub fn get_number<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<u64>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_number(self.ptr, c_name.as_ptr()) {
                 Ok(Some(nvlist_get_number(self.ptr, c_name.as_ptr())))
@@ -565,8 +602,8 @@ impl NvList {
     ///
     /// assert_eq!(list.get_string("Hello").unwrap().unwrap(), "World!");
     /// ```
-    pub fn get_string(&self, name: &str) -> NvResult<Option<String>> {
-        let c_name = CString::new(name)?;
+    pub fn get_string<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<String>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_string(self.ptr, c_name.as_ptr()) {
                 let ret = nvlist_get_string(self.ptr, c_name.as_ptr());
@@ -603,8 +640,8 @@ impl NvList {
     /// assert_eq!(other_nvlist.get_number("Important year").unwrap().unwrap(),
     /// 42);
     /// ```
-    pub fn get_nvlist(&self, name: &str) -> NvResult<Option<NvList>> {
-        let c_name = CString::new(name)?;
+    pub fn get_nvlist<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<NvList>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_nvlist(self.ptr, c_name.as_ptr()) {
                 let res = nvlist_get_nvlist(self.ptr, c_name.as_ptr());
@@ -628,8 +665,8 @@ impl NvList {
     /// assert_eq!(list.get_bools("true/false").unwrap().unwrap(), &[true,
     /// false, true]);
     /// ```
-    pub fn get_bools<'a>(&'a self, name: &str) -> NvResult<Option<&'a [bool]>> {
-        let c_name = CString::new(name)?;
+    pub fn get_bools<'a, 'b, N: IntoCStr<'b>>(&'a self, name: N) -> NvResult<Option<&'a [bool]>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_bool_array(self.ptr, c_name.as_ptr()) {
                 let mut len: usize = 0;
@@ -654,8 +691,8 @@ impl NvList {
     /// assert_eq!(list.get_numbers("The Year").unwrap().unwrap(), &[1, 7, 7,
     /// 6]);
     /// ```
-    pub fn get_numbers(&self, name: &str) -> NvResult<Option<&[u64]>> {
-        let c_name = CString::new(name)?;
+    pub fn get_numbers<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<&[u64]>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_number_array(self.ptr, c_name.as_ptr()) {
                 let mut len: usize = 0;
@@ -670,8 +707,8 @@ impl NvList {
 
     /// Get a `Vec<String>` of the first string slice added to the `NvList`
     /// for the given name
-    pub fn get_strings(&self, name: &str) -> NvResult<Option<Vec<String>>> {
-        let c_name = CString::new(name)?;
+    pub fn get_strings<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<Vec<String>>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_string_array(self.ptr, c_name.as_ptr()) {
                 let mut len: usize = 0;
@@ -707,8 +744,8 @@ impl NvList {
     /// assert_eq!(vec.len(), 2);
     /// assert_eq!(vec[0].flags(), NvFlag::None);
     /// ```
-    pub fn get_nvlists(&self, name: &str) -> NvResult<Option<Vec<NvList>>> {
-        let c_name = CString::new(name)?;
+    pub fn get_nvlists<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<Vec<NvList>>> {
+        let c_name = name.into_c_str()?;
         unsafe {
             if nvlist_exists_nvlist_array(self.ptr, c_name.as_ptr()) {
                 let mut len: usize = 0;
@@ -740,11 +777,13 @@ impl NvList {
     }
 
     /// The size of the current list
-    pub fn len(&self) -> usize { unsafe { nvlist_size(self.ptr) } }
+    pub fn len(&self) -> usize {
+        unsafe { nvlist_size(self.ptr) }
+    }
 
     /// Removes a key from the `NvList`.
-    pub fn remove(&mut self, name: &str) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn remove<'a, N: IntoCStr<'a>>(&mut self, name: N) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_free(self.ptr, c_name.as_ptr());
         }
@@ -753,8 +792,8 @@ impl NvList {
 
     /// Remove the element of the given name and type
     /// from the `NvList`
-    pub fn remove_with_type(&mut self, name: &str, ty: NvType) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn remove_with_type<'a, N: IntoCStr<'a>>(&mut self, name: N, ty: NvType) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         unsafe {
             nvlist_free_type(self.ptr, c_name.as_ptr(), ty as i32);
         }
@@ -764,7 +803,9 @@ impl NvList {
 
 impl Clone for NvList {
     /// Clone list using libnv method. This will perform deep copy.
-    fn clone(&self) -> NvList { NvList { ptr: unsafe { nvlist_clone(self.ptr) } } }
+    fn clone(&self) -> NvList {
+        NvList { ptr: unsafe { nvlist_clone(self.ptr) } }
+    }
 }
 
 impl Drop for NvList {

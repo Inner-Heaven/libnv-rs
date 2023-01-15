@@ -2,14 +2,8 @@ extern crate regex;
 
 #[cfg(target_os = "freebsd")]
 fn main() {
-
     use regex::Regex;
-    use std::{
-        env,
-        fs::File,
-        io::Write,
-        path::PathBuf,
-    };
+    use std::{env, fs::File, io::Write, path::PathBuf};
 
     println!("cargo:rerun-if-env-changed=LLVM_CONFIG_PATH");
     println!("cargo:rustc-link-lib=nv");
@@ -44,17 +38,16 @@ fn main() {
         let new_fragment = match cap.get(1).unwrap().as_str() {
             "fn" => {
                 let funcname = cap.get(2).unwrap().as_str();
-                fixed_bindings.push_str(
-                    &format!("#[link_name = \"FreeBSD_{}\"]\n", funcname));
+                fixed_bindings.push_str(&format!("#[link_name = \"FreeBSD_{}\"]\n", funcname));
                 format!("pub fn {}", funcname)
             },
             "type" => {
                 let typename = cap.get(2).unwrap().as_str();
-                fixed_bindings.push_str(&format!("pub type FreeBSD_{} = {};\n",
-                                                 typename, typename));
+                fixed_bindings
+                    .push_str(&format!("pub type FreeBSD_{} = {};\n", typename, typename));
                 format!("pub type {}", typename)
-            }
-            _ => unreachable!()
+            },
+            _ => unreachable!(),
         };
         fixed_bindings.push_str(&new_fragment);
         prev_index = index + new_fragment.len() + "FreeBSD_".len();

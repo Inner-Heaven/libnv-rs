@@ -1,17 +1,17 @@
 //! Solaris implementation of Name/Value pairs library.
 
-use nvpair_sys as sys;
+use {nvpair_sys as sys, IntoCStr};
 
 use crate::{NvError, NvResult};
-use std::{collections::HashMap,
-          convert::TryInto,
-          ffi::{CStr, CString},
-          fmt::Formatter,
-          mem::MaybeUninit,
-          ptr::null_mut};
 use std::os::unix::io::AsRawFd;
-
-
+use std::{
+    collections::HashMap,
+    convert::TryInto,
+    ffi::{CStr, CString},
+    fmt::Formatter,
+    mem::MaybeUninit,
+    ptr::null_mut,
+};
 
 extern "C" {
     pub fn nvlist_print_json(fp: *mut libc::FILE, nvl: *const sys::nvlist_t) -> i32;
@@ -20,7 +20,7 @@ extern "C" {
 /// own types if you don't want to convert to primitive types every time.
 pub trait NvTypeOp {
     /// Add self to given list.
-    fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()>;
+    fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()>;
 }
 
 #[repr(i32)]
@@ -29,16 +29,16 @@ pub enum NvEncoding {
     /// A basic copy on insert operation.
     Native = 0,
     /// [XDR](https://tools.ietf.org/html/rfc4506) copy suitable for sending to remote host.
-    Xdr    = 1,
+    Xdr = 1,
 }
 /// Options available for creation of an `nvlist`
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
     /// No flags. Allows duplicate names of any type, but renders `get_` methods useless.
-    None           = 0b000,
+    None = 0b000,
     /// An existing pair of the same type will be removed prior inserting.
-    UniqueName     = 0b001,
+    UniqueName = 0b001,
     /// An existing pair of any type will be removed prior inserting.
     UniqueNameType = 0b010,
 }
@@ -85,41 +85,63 @@ impl Value {
 }
 
 impl From<i8> for Value {
-    fn from(src: i8) -> Self { Value::Int8(src) }
+    fn from(src: i8) -> Self {
+        Value::Int8(src)
+    }
 }
 impl From<u8> for Value {
-    fn from(src: u8) -> Self { Value::Uint8(src) }
+    fn from(src: u8) -> Self {
+        Value::Uint8(src)
+    }
 }
 impl From<i16> for Value {
-    fn from(src: i16) -> Self { Value::Int16(src) }
+    fn from(src: i16) -> Self {
+        Value::Int16(src)
+    }
 }
 impl From<u16> for Value {
-    fn from(src: u16) -> Self { Value::Uint16(src) }
+    fn from(src: u16) -> Self {
+        Value::Uint16(src)
+    }
 }
 impl From<i32> for Value {
-    fn from(src: i32) -> Self { Value::Int32(src) }
+    fn from(src: i32) -> Self {
+        Value::Int32(src)
+    }
 }
 impl From<u32> for Value {
-    fn from(src: u32) -> Self { Value::Uint32(src) }
+    fn from(src: u32) -> Self {
+        Value::Uint32(src)
+    }
 }
 impl From<i64> for Value {
-    fn from(src: i64) -> Self { Value::Int64(src) }
+    fn from(src: i64) -> Self {
+        Value::Int64(src)
+    }
 }
 impl From<u64> for Value {
-    fn from(src: u64) -> Self { Value::Uint64(src) }
+    fn from(src: u64) -> Self {
+        Value::Uint64(src)
+    }
 }
 impl From<String> for Value {
-    fn from(src: String) -> Self { Value::String(src) }
+    fn from(src: String) -> Self {
+        Value::String(src)
+    }
 }
 impl From<&str> for Value {
-    fn from(src: &str) -> Self { Value::String(src.into()) }
+    fn from(src: &str) -> Self {
+        Value::String(src.into())
+    }
 }
 pub struct NvList {
     ptr: *mut sys::nvlist_t,
 }
 
 impl Drop for NvList {
-    fn drop(&mut self) { unsafe { sys::nvlist_free(self.ptr) } }
+    fn drop(&mut self) {
+        unsafe { sys::nvlist_free(self.ptr) }
+    }
 }
 
 /// Return new list with no flags.
@@ -132,7 +154,7 @@ macro_rules! impl_list_op {
     ($type_:ty, $method:ident, false) => {
         impl NvTypeOp for $type_ {
             /// Add a `$type_` value to the `NvList`
-            fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+            fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()> {
                 return list.$method(name, *self);
             }
         }
@@ -140,7 +162,7 @@ macro_rules! impl_list_op {
     ($type_:ty, $method:ident, true) => {
         impl NvTypeOp for $type_ {
             /// Add a `$type_` value to the `NvList`
-            fn add_to_list(&self, list: &mut NvList, name: &str) -> NvResult<()> {
+            fn add_to_list<'a, N: IntoCStr<'a>>(&self, list: &mut NvList, name: N) -> NvResult<()> {
                 return list.$method(name, &*self);
             }
         }
@@ -150,9 +172,20 @@ macro_rules! impl_list_op {
 macro_rules! nvpair_type_array_method {
     ($type_:ty, $rmethod_insert:ident, $smethod_insert:ident, $rmethod_get:ident, $smethod_get:ident) => {
         /// Add `&[$type_]` value to the list.
-        pub fn $rmethod_insert(&mut self, name: &str, value: &mut [$type_]) -> NvResult<()> {
-            let c_name = CString::new(name)?;
-            let errno = unsafe { sys::$smethod_insert(self.ptr, c_name.as_ptr(), value.as_mut_ptr(), value.len() as u32) };
+        pub fn $rmethod_insert<'a, N: IntoCStr<'a>>(
+            &mut self,
+            name: N,
+            value: &mut [$type_],
+        ) -> NvResult<()> {
+            let c_name = name.into_c_str()?;
+            let errno = unsafe {
+                sys::$smethod_insert(
+                    self.ptr,
+                    c_name.as_ptr(),
+                    value.as_mut_ptr(),
+                    value.len() as u32,
+                )
+            };
             if errno != 0 {
                 Err(NvError::from_errno(errno))
             } else {
@@ -160,30 +193,30 @@ macro_rules! nvpair_type_array_method {
             }
         }
 
-                /// Get a `$type_` value by given name from the list.
-        pub fn $rmethod_get<'a>(&'a self, name: &str) -> NvResult<&'a [$type_]> {
-            let c_name = CString::new(name)?;
+        /// Get a `$type_` value by given name from the list.
+        pub fn $rmethod_get<'a, 'b, N: IntoCStr<'b>>(&'a self, name: N) -> NvResult<&'a [$type_]> {
+            let c_name = name.into_c_str()?;
             let mut ptr = null_mut();
             let mut len = 0;
-            let errno = unsafe {
-                sys::$smethod_get(self.ptr, c_name.as_ptr(), &mut ptr, &mut len)
-            };
+            let errno = unsafe { sys::$smethod_get(self.ptr, c_name.as_ptr(), &mut ptr, &mut len) };
             if errno != 0 {
                 Err(NvError::from_errno(errno))
             } else {
-                let ret = unsafe {
-                    std::slice::from_raw_parts(&mut *ptr, len.try_into().unwrap())
-                 };
+                let ret = unsafe { std::slice::from_raw_parts(&mut *ptr, len.try_into().unwrap()) };
                 Ok(ret)
             }
         }
-    }
+    };
 }
 macro_rules! nvpair_type_method {
     ($type_:ty, $rmethod_insert:ident, $smethod_insert:ident, $rmethod_get:ident, $smethod_get:ident) => {
         /// Add `$type_` value to the list.
-        pub fn $rmethod_insert(&mut self, name: &str, value: $type_) -> NvResult<()> {
-            let c_name = CString::new(name)?;
+        pub fn $rmethod_insert<'a, N: IntoCStr<'a>>(
+            &mut self,
+            name: N,
+            value: $type_,
+        ) -> NvResult<()> {
+            let c_name = name.into_c_str()?;
             let errno = unsafe { sys::$smethod_insert(self.ptr, c_name.as_ptr(), value) };
             if errno != 0 {
                 Err(NvError::from_errno(errno))
@@ -193,12 +226,10 @@ macro_rules! nvpair_type_method {
         }
 
         /// Get a `$type_` value by given name from the list.
-        pub fn $rmethod_get(&self, name: &str) -> NvResult<$type_> {
-            let c_name = CString::new(name)?;
+        pub fn $rmethod_get<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<$type_> {
+            let c_name = name.into_c_str()?;
             let mut ptr = MaybeUninit::<$type_>::uninit();
-            let errno = unsafe {
-                sys::$smethod_get(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr())
-            };
+            let errno = unsafe { sys::$smethod_get(self.ptr, c_name.as_ptr(), ptr.as_mut_ptr()) };
             if errno != 0 {
                 Err(NvError::from_errno(errno))
             } else {
@@ -206,7 +237,7 @@ macro_rules! nvpair_type_method {
                 Ok(ret)
             }
         }
-    }
+    };
 }
 
 impl NvList {
@@ -291,7 +322,9 @@ impl NvList {
     );
 
     /// Make a copy of a pointer. Danger zone.
-    pub fn as_ptr(&self) -> *mut sys::nvlist_t { self.ptr }
+    pub fn as_ptr(&self) -> *mut sys::nvlist_t {
+        self.ptr
+    }
 
     pub fn new(flags: NvFlag) -> NvResult<Self> {
         let mut raw_list = null_mut();
@@ -303,7 +336,9 @@ impl NvList {
         }
     }
 
-    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self { Self { ptr } }
+    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self {
+        Self { ptr }
+    }
 
     pub fn iter(&self) -> impl Iterator<Item = NvPairRef> + '_ {
         NvListIter { list: self, position: null_mut() }
@@ -323,19 +358,23 @@ impl NvList {
         ret != sys::boolean_t::B_FALSE
     }
 
-    pub fn exists(&self, name: &str) -> NvResult<bool> {
-        let c_name = CString::new(name)?;
+    pub fn exists<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<bool> {
+        let c_name = name.into_c_str()?;
         let ret = unsafe { sys::nvlist_exists(self.as_ptr(), c_name.as_ptr()) };
         Ok(ret != sys::boolean_t::B_FALSE)
     }
 
-    pub fn insert<T: NvTypeOp>(&mut self, name: &str, value: T) -> NvResult<()> {
+    pub fn insert<'a, N: IntoCStr<'a>, T: NvTypeOp>(&mut self, name: N, value: T) -> NvResult<()> {
         value.add_to_list(self, name)
     }
 
     /// Add a `bool` to the list.
-    pub fn insert_boolean_value(&mut self, name: &str, value: bool) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_boolean_value<'a, N: IntoCStr<'a>>(
+        &mut self,
+        name: N,
+        value: bool,
+    ) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         let v = {
             if value {
                 sys::boolean_t::B_TRUE
@@ -352,8 +391,8 @@ impl NvList {
     }
 
     /// Add a `bool` to the list.
-    pub fn insert_boolean(&mut self, name: &str) -> NvResult<()> {
-        let c_name = CString::new(name)?;
+    pub fn insert_boolean<'a, N: IntoCStr<'a>>(&mut self, name: N) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
         let errno = unsafe { sys::nvlist_add_boolean(self.ptr, c_name.as_ptr()) };
         if errno != 0 {
             Err(NvError::from_errno(errno))
@@ -362,10 +401,9 @@ impl NvList {
         }
     }
 
-
     /// Get a `bool` from the list.
-    pub fn get_boolean_value(&self, name: &str) -> NvResult<bool> {
-        let c_name = CString::new(name)?;
+    pub fn get_boolean_value<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<bool> {
+        let c_name = name.into_c_str()?;
         let mut ptr = MaybeUninit::<sys::boolean_t::Type>::uninit();
 
         let errno = unsafe {
@@ -380,12 +418,10 @@ impl NvList {
     }
 
     /// Get a `bool` from the list.
-    pub fn get_boolean(&self, name: &str) -> NvResult<bool> {
-        let c_name = CString::new(name)?;
+    pub fn get_boolean<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<bool> {
+        let c_name = name.into_c_str()?;
 
-        let errno = unsafe {
-            sys::nvlist_lookup_boolean(self.ptr, c_name.as_ptr())
-        };
+        let errno = unsafe { sys::nvlist_lookup_boolean(self.ptr, c_name.as_ptr()) };
         if errno != 0 {
             Err(NvError::from_errno(errno))
         } else {
@@ -393,11 +429,14 @@ impl NvList {
         }
     }
 
-
     /// Add a `&str` to the list.
-    pub fn insert_string(&mut self, name: &str, value: &str) -> NvResult<()> {
-        let c_name = CString::new(name)?;
-        let c_value = CString::new(value)?;
+    pub fn insert_string<'a, 'b, N: IntoCStr<'a>, V: IntoCStr<'b>>(
+        &mut self,
+        name: N,
+        value: V,
+    ) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
+        let c_value = value.into_c_str()?;
         let errno = unsafe { sys::nvlist_add_string(self.ptr, c_name.as_ptr(), c_value.as_ptr()) };
         if errno != 0 {
             Err(NvError::from_errno(errno))
@@ -406,8 +445,8 @@ impl NvList {
         }
     }
 
-    pub fn get_cstr(&self, name: &str) -> NvResult<&CStr> {
-        let c_name = CString::new(name)?;
+    pub fn get_cstr<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<&CStr> {
+        let c_name = name.into_c_str()?;
         let mut ptr = null_mut();
         let errno = unsafe { sys::nvlist_lookup_string(self.ptr, c_name.as_ptr(), &mut ptr) };
         if errno != 0 {
@@ -419,12 +458,12 @@ impl NvList {
     }
 
     /// Get a `String` from the list.
-    pub fn get_string(&self, name: &str) -> NvResult<String> {
+    pub fn get_string<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<String> {
         self.get_str(name).map(str::to_owned)
     }
 
     /// Get a `String` from the list.
-    pub fn get_str(&self, name: &str) -> NvResult<&str> {
+    pub fn get_str<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<&str> {
         self.get_cstr(name).and_then(|v| v.to_str().map_err(NvError::from))
     }
 
@@ -471,11 +510,17 @@ pub struct NvPairRef {
 }
 
 impl NvPairRef {
-    pub fn as_ptr(&self) -> *mut sys::nvpair_t { self.ptr }
+    pub fn as_ptr(&self) -> *mut sys::nvpair_t {
+        self.ptr
+    }
 
-    pub unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self { Self { ptr } }
+    pub unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self {
+        Self { ptr }
+    }
 
-    pub fn key(&self) -> &CStr { unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) } }
+    pub fn key(&self) -> &CStr {
+        unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) }
+    }
 
     pub fn value(&self) -> Value {
         let data_type = unsafe { sys::nvpair_type(self.as_ptr()) };
@@ -573,7 +618,7 @@ impl std::fmt::Debug for NvPairRef {
 }
 
 pub struct NvListIter<'a> {
-    list:     &'a NvList,
+    list: &'a NvList,
     position: *mut sys::nvpair_t,
 }
 
@@ -681,7 +726,6 @@ mod test {
         let ret = list.get_boolean("random").unwrap();
         assert_eq!(true, ret);
     }
-
 
     #[test]
     fn cr_i8() {
@@ -888,6 +932,23 @@ mod test {
         expected_map.insert(String::from("u32"), Value::from(1u32));
         expected_map.insert(String::from("i8"), Value::from(1i8));
         expected_map.insert(String::from("string"), Value::from("oh yeah"));
+
+        assert_eq!(expected_map, list.into_hashmap());
+    }
+
+    #[test]
+    fn into_c_str() {
+        let owned = CString::new("owned").unwrap();
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert(owned, 1u32).unwrap();
+
+        let borrowed_name = CString::new("borrowed").unwrap();
+        let borrowed = unsafe { CStr::from_ptr(borrowed_name.as_ptr()) };
+        list.insert(borrowed, 2u32).unwrap();
+
+        let mut expected_map = HashMap::with_capacity(3);
+        expected_map.insert(String::from("owned"), Value::from(1u32));
+        expected_map.insert(String::from("borrowed"), Value::from(2u32));
 
         assert_eq!(expected_map, list.into_hashmap());
     }
