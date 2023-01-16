@@ -943,7 +943,7 @@ mod test {
         list.insert(owned, 1u32).unwrap();
 
         let borrowed_name = CString::new("borrowed").unwrap();
-        let borrowed = unsafe { CStr::from_ptr(borrowed_name.as_ptr()) };
+        let borrowed: &CStr = borrowed_name.as_c_str();
         list.insert(borrowed, 2u32).unwrap();
 
         let mut expected_map = HashMap::with_capacity(3);
