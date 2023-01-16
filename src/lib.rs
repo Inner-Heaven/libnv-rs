@@ -9,17 +9,23 @@
 //! [nvpair]: https://github.com/zfsonlinux/zfs/tree/master/module/nvpair
 
 extern crate libc;
-#[macro_use] extern crate quick_error;
+#[macro_use]
+extern crate quick_error;
 
-#[cfg(feature = "libnv")] extern crate libnv_sys;
+#[cfg(feature = "libnv")]
+extern crate libnv_sys;
 
 #[cfg(feature = "nvpair")]
 extern crate nvpair_sys;
 
-#[cfg(feature = "libnv")] pub mod libnv;
+#[cfg(feature = "libnv")]
+pub mod libnv;
 
-#[cfg(feature = "nvpair")] pub mod nvpair;
+#[cfg(feature = "nvpair")]
+pub mod nvpair;
 
+use std::borrow::Cow;
+use std::ffi::{CStr, CString};
 use std::{ffi::NulError, io};
 quick_error! {
     #[derive(Debug)]
@@ -61,3 +67,33 @@ impl NvError {
 
 /// Short-cut to Result<T, NvError>.
 pub type NvResult<T> = Result<T, NvError>;
+
+/// Trait to keep public interface friendly (i.e. support rust types like `&str`) and at the same time
+/// allow using lower level types like `CString` & `CStr`.
+pub trait IntoCStr<'a> {
+    fn into_c_str(self) -> NvResult<Cow<'a, CStr>>;
+}
+
+impl<'a> IntoCStr<'a> for &'a CStr {
+    fn into_c_str(self) -> NvResult<Cow<'a, CStr>> {
+        Ok(Cow::from(self))
+    }
+}
+
+impl<'a> IntoCStr<'a> for CString {
+    fn into_c_str(self) -> NvResult<Cow<'a, CStr>> {
+        Ok(Cow::from(self))
+    }
+}
+
+impl<'a> IntoCStr<'a> for &str {
+    fn into_c_str(self) -> NvResult<Cow<'a, CStr>> {
+        CString::new(self).map(Cow::from).map_err(NvError::from)
+    }
+}
+
+impl<'a> IntoCStr<'a> for String {
+    fn into_c_str(self) -> NvResult<Cow<'a, CStr>> {
+        CString::new(self).map(Cow::from).map_err(NvError::from)
+    }
+}
