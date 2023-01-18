@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2023-01-18
+
+### Bug Fixes
+
+- Use 0.2 version of libnv-sys
+
 ## [0.4.0] - 2023-01-16
 
 ### Features
