@@ -1,7 +1,7 @@
 [package]
 name = "libnv-sys"
-version = "0.1.5"
-authors = ["Andrey Cherkashin <with.out@me.com>"]
+version = "0.2.0"
+authors = ["Andrey Snow <andoriyu@gmail.com>"]
 links = "libnv"
 build = "build.rs"
 categories = ["external-ffi-bindings"]
