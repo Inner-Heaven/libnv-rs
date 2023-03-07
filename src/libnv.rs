@@ -25,7 +25,7 @@ use libnv_sys::*;
 use std::{
     convert::{From, Into},
     ffi::CStr,
-    os::raw::c_void,
+    os::raw::{c_char, c_void},
     os::unix::io::AsRawFd,
     slice,
 };
@@ -439,7 +439,7 @@ impl NvList {
             .map(IntoCStr::into_c_str)
             .collect::<NvResult<Vec<_>>>()?;
         unsafe {
-            let pointers: Vec<*const i8> = strings.iter().map(|e| e.as_ptr()).collect();
+            let pointers: Vec<*const c_char> = strings.iter().map(|e| e.as_ptr()).collect();
 
             nvlist_add_string_array(
                 self.ptr,
@@ -714,13 +714,11 @@ impl NvList {
                 let mut len: usize = 0;
                 let arr =
                     nvlist_get_string_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
-                let slice = slice::from_raw_parts(arr as *const *const i8, len);
+                let slice = slice::from_raw_parts(arr as *const *const c_char, len);
                 let strings = slice
                     .iter()
                     .copied()
-                    .map(|ptr| CStr::from_ptr(ptr))
-                    .map(|cstr| cstr.to_string_lossy())
-                    .map(String::from)
+                    .map(|ptr| String::from(CStr::from_ptr(ptr).to_string_lossy()))
                     .collect();
                 Ok(Some(strings))
             } else {
