@@ -10,9 +10,6 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(not(crossdocs))]
-type size_t = usize;
-
-#[cfg(not(crossdocs))]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(crossdocs)]
