@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2023-03-09
+
+### Bug Fixes
+
+- Fix the build on {aarch64,arm}-unknown-freebsd (#32)
+
 ## [0.4.1] - 2023-01-18
 
 ### Bug Fixes
