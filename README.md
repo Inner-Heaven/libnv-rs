@@ -15,7 +15,7 @@ If you have FreeBSD you already have library available in base system. On linux,
 
 ```
 [dependencies]
-libnv= "0.2.2"
+libnv= "0.4.2"
 ```
 ## Usage
 Read the [docs](https://docs.rs/libnv).
