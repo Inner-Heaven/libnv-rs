@@ -8,6 +8,7 @@
 #![cfg_attr(crossdocs, doc = "These docs are just stubs!  Don't trust them.")]
 // bindgen generates some unconventional type names
 #![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
 
 #[cfg(not(crossdocs))]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
