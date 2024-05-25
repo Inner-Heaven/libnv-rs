@@ -523,7 +523,7 @@ impl NvPairRef {
         self.ptr
     }
 
-    pub unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self {
+    unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self {
         Self { ptr }
     }
 
