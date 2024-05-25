@@ -17,7 +17,7 @@ targets = [
 ]
 
 [dependencies]
-libc = "0.2"
+libc = "0.2.65"
 
 [build-dependencies]
 bindgen = { version = "0.66.1", features=[] }
