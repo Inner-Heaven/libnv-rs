@@ -29,9 +29,8 @@ use std::{
     os::unix::io::AsRawFd,
     slice,
 };
-use IntoCStr;
 
-use crate::{NvError, NvResult};
+use crate::{IntoCStr, NvError, NvResult};
 
 /// Enumeration of available data types that the API supports.
 pub enum NvType {
@@ -562,8 +561,7 @@ impl NvList {
     ///
     /// list.insert_bool("Did history start on 1776?", true).unwrap();
     ///
-    /// assert!(list.get_bool("Did history start on 1776?").unwrap().unwrap(),
-    /// true);
+    /// assert!(list.get_bool("Did history start on 1776?").unwrap().unwrap());
     /// ```
     pub fn get_bool<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<Option<bool>> {
         let c_name = name.into_c_str()?;
