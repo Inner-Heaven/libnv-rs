@@ -35,6 +35,12 @@ task:
     image_family: freebsd-14-0-snap
   << : *FREEBSD_SETUP
   << : *BUILD_TEST
+  minver_script:
+    - . $HOME/.cargo/env
+    - if rustc --version | grep -q nightly; then
+    -   cargo update -Zdirect-minimal-versions
+    -   cargo check --all-targets ${FEATURES}
+    - fi
   before_cache_script: rm -rf $HOME/.cargo/registry/index
 
 task:
