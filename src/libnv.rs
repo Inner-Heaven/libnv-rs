@@ -161,7 +161,7 @@ impl NvList {
 
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
-            errno if errno == 0 => Ok(()),
+            0 => Ok(()),
             errno => Err(NvError::NativeError(errno)),
         }
     }
@@ -354,6 +354,10 @@ impl NvList {
     }
 
     /// Add binary data to the list.
+    ///
+    /// # Safety
+    ///
+    /// `value` must point to valid memory of size at least `size`.
     #[deprecated(since = "0.4.0", note = "use insert_binary instead")]
     pub unsafe fn add_binary<'a, N: IntoCStr<'a>>(
         &mut self,
@@ -671,7 +675,7 @@ impl NvList {
             if nvlist_exists_bool_array(self.ptr, c_name.as_ptr()) {
                 let mut len: usize = 0;
                 let arr = nvlist_get_bool_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
-                Ok(Some(slice::from_raw_parts(arr as *const bool, len)))
+                Ok(Some(slice::from_raw_parts(arr, len)))
             } else {
                 Ok(None)
             }
@@ -698,7 +702,7 @@ impl NvList {
                 let mut len: usize = 0;
                 let arr =
                     nvlist_get_number_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
-                Ok(Some(slice::from_raw_parts(arr as *const u64, len)))
+                Ok(Some(slice::from_raw_parts(arr, len)))
             } else {
                 Ok(None)
             }
@@ -714,7 +718,7 @@ impl NvList {
                 let mut len: usize = 0;
                 let arr =
                     nvlist_get_string_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
-                let slice = slice::from_raw_parts(arr as *const *const c_char, len);
+                let slice = slice::from_raw_parts(arr, len);
                 let strings = slice
                     .iter()
                     .copied()
@@ -749,7 +753,7 @@ impl NvList {
                 let mut len: usize = 0;
                 let arr =
                     nvlist_get_nvlist_array(self.ptr, c_name.as_ptr(), &mut len as *mut usize);
-                let slice = slice::from_raw_parts(arr as *const *const nvlist_t, len);
+                let slice = slice::from_raw_parts(arr, len);
                 Ok(Some(slice.iter().map(|item| NvList { ptr: nvlist_clone(*item) }).collect()))
             } else {
                 Ok(None)
