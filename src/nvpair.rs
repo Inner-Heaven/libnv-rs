@@ -1,13 +1,13 @@
 //! Solaris implementation of Name/Value pairs library.
 
-use {nvpair_sys as sys, IntoCStr};
+use nvpair_sys as sys;
 
-use crate::{NvError, NvResult};
+use crate::{IntoCStr, NvError, NvResult};
 use std::os::unix::io::AsRawFd;
 use std::{
     collections::HashMap,
     convert::TryInto,
-    ffi::{CStr, CString},
+    ffi::CStr,
     fmt::Formatter,
     mem::MaybeUninit,
     ptr::null_mut,
@@ -478,7 +478,7 @@ impl NvList {
 
     /// Turn NvPair into json representation. This method uses libnvpair to do so.
     pub fn save_as_json<F: AsRawFd>(&self, output: F) -> NvResult<()> {
-        let mode = CString::new("w").unwrap();
+        let mode = c"w";
         let file = unsafe { libc::fdopen(output.as_raw_fd(), mode.as_ptr()) };
         let errno = unsafe { nvlist_print_json(file, self.ptr) };
         if errno != 0 {
@@ -648,6 +648,7 @@ impl<'a> Iterator for NvListIter<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::ffi::CString;
 
     #[test]
     fn it_works() {
@@ -950,8 +951,7 @@ mod test {
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert(owned, 1u32).unwrap();
 
-        let borrowed_name = CString::new("borrowed").unwrap();
-        let borrowed: &CStr = borrowed_name.as_c_str();
+        let borrowed = c"borrowed";
         list.insert(borrowed, 2u32).unwrap();
 
         let mut expected_map = HashMap::with_capacity(3);
