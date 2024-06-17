@@ -8,6 +8,8 @@
 //! [libnv]: https://www.freebsd.org/cgi/man.cgi?query=nv
 //! [nvpair]: https://github.com/zfsonlinux/zfs/tree/master/module/nvpair
 
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 extern crate libc;
 #[macro_use]
 extern crate quick_error;
