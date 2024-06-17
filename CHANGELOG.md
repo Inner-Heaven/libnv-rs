@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - ReleaseDate
+
+### Features
+
+- Added `NvList::pack` (#50)
+
 ## [0.4.2] - 2023-03-09
 
 ### Bug Fixes
