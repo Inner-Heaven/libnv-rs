@@ -172,6 +172,11 @@ impl<'a> BorrowedPackedNvList<'a> {
         self.buf.as_ptr() as *const c_void
     }
 
+    /// Get a mutable pointer to the packed buffer, for use with FFI functions.
+    pub fn as_mut_ptr(&mut self) -> *mut c_void {
+        self.buf.as_ptr() as *mut c_void
+    }
+
     /// Get the size of the packed buffer
     pub fn len(&self) -> usize {
         self.buf.len()
@@ -196,6 +201,11 @@ impl<'a> BorrowedPackedNvList<'a> {
 impl PackedNvList {
     /// Get a pointer to the packed buffer, for use with FFI functions.
     pub fn as_ptr(&self) -> *const c_void {
+        self.ptr
+    }
+
+    /// Get a mutable pointer to the packed buffer, for use with FFI functions.
+    pub fn as_mut_ptr(&mut self) -> *mut c_void {
         self.ptr
     }
 
