@@ -59,7 +59,7 @@ impl NvError {
         match errno {
             libc::ENOENT => NvError::NotFound,
             libc::ENOMEM => NvError::OutOfMemory,
-            45 => NvError::OperationNotSupported,
+            libc::EOPNOTSUPP => NvError::OperationNotSupported,
             n => NvError::Io(io::Error::from_raw_os_error(n)),
         }
     }
