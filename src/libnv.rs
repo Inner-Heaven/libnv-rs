@@ -145,6 +145,99 @@ pub struct NvList {
     ptr: *mut nvlist_t,
 }
 
+/// A packed [`NvList`]
+///
+/// This buffer holds an NvList that has been packed into a form suitable for serialization.  It
+/// can even be sent to a host with a different endianness.
+#[derive(Debug)]
+pub struct PackedNvList {
+    ptr: *mut c_void,
+    size: usize
+}
+
+/// Like [`PackedNvList`], but it doesn't own the memory
+#[derive(Debug)]
+pub struct BorrowedPackedNvList<'a> {
+    buf: &'a [u8]
+}
+
+impl<'a> BorrowedPackedNvList<'a> {
+    /// Create a borrowed packed NvList from a Rust buffer
+    pub fn from_raw(buf: &'a [u8]) -> Self {
+        BorrowedPackedNvList{buf}
+    }
+
+    /// Get a pointer to the packed buffer, for use with FFI functions.
+    pub fn as_ptr(&self) -> *const c_void {
+        self.buf.as_ptr() as *const c_void
+    }
+
+    /// Get a mutable pointer to the packed buffer, for use with FFI functions.
+    pub fn as_mut_ptr(&mut self) -> *mut c_void {
+        self.buf.as_ptr() as *mut c_void
+    }
+
+    /// Get the size of the packed buffer
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// Attempt to unpack the given buffer into an [`NvList`].
+    ///
+    /// The `flags` should be the same that were originally passed to [`NvList::new`], if it was
+    /// created by this library.  Otherwise, they should refer to whatever top level nvlist is
+    /// expected.
+    pub fn unpack(&self, flags: NvFlag) -> NvResult<NvList> {
+        let raw = unsafe { nvlist_unpack(self.buf.as_ptr() as *const c_void, self.len(), flags as i32) };
+        if raw.is_null() {
+            let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+            Err(NvError::from_errno(errno))
+        } else {
+            Ok(NvList { ptr: raw })
+        }
+    }
+}
+
+impl PackedNvList {
+    /// Get a pointer to the packed buffer, for use with FFI functions.
+    pub fn as_ptr(&self) -> *const c_void {
+        self.ptr
+    }
+
+    /// Get a mutable pointer to the packed buffer, for use with FFI functions.
+    pub fn as_mut_ptr(&mut self) -> *mut c_void {
+        self.ptr
+    }
+
+    /// Get the size of the packed buffer
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    /// Attempt to unpack the given buffer into an [`NvList`].
+    ///
+    /// The `flags` should be the same that were originally passed to [`NvList::new`], if it was
+    /// created by this library.  Otherwise, they should refer to whatever top level nvlist is
+    /// expected.
+    pub fn unpack(&self, flags: NvFlag) -> NvResult<NvList> {
+        let raw = unsafe { nvlist_unpack(self.ptr, self.size, flags as i32) };
+        if raw.is_null() {
+            let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+            Err(NvError::from_errno(errno))
+        } else {
+            Ok(NvList { ptr: raw })
+        }
+    }
+}
+
+impl Drop for PackedNvList {
+    fn drop(&mut self) {
+        unsafe {
+            libc::free(self.ptr);
+        }
+    }
+}
+
 #[doc(hidden)]
 /// Return new list with no flags.
 impl Default for NvList {
@@ -799,6 +892,24 @@ impl NvList {
         }
         self.check_if_error()
     }
+
+    /// Attempt to pack this NvList into a serialized form.
+    ///
+    /// See the man page for restrictions on which types of NvList may be packed.
+    pub fn pack(&self) -> NvResult<PackedNvList> {
+        let mut packed = PackedNvList {
+            ptr: std::ptr::null_mut(),
+            size: 0
+        };
+        let ptr = unsafe { nvlist_pack(self.ptr, &mut packed.size) };
+        if ptr.is_null() {
+            let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+            Err(NvError::from_errno(errno))
+        } else {
+            packed.ptr = ptr;
+            Ok(packed)
+        }
+    }
 }
 
 impl Clone for NvList {
@@ -824,5 +935,82 @@ impl From<NvList> for *mut nvlist_t {
         let r = outer.ptr;
         std::mem::forget(outer);
         r
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    mod nvlist_pack {
+        use super::*;
+
+        #[test]
+        fn ok() {
+            let nv = NvList::new(NvFlag::None).unwrap();
+            let _packed = nv.pack().unwrap();
+        }
+
+        /// nvlist_pack does not work on nvlists with file descriptors
+        #[test]
+        fn file_descriptors() {
+            let nv = NvList::new(NvFlag::None).unwrap();
+            let name = c"foo";
+            unsafe {
+                nvlist_add_descriptor(nv.as_ptr(), name.as_ptr(), 1);
+            }
+            assert!(matches!(nv.pack().unwrap_err(), NvError::OperationNotSupported));
+        }
+    }
+
+    mod nvlist_unpack {
+        use super::*;
+
+        #[test]
+        fn bad_flags() {
+            let mut nv = NvList::new(NvFlag::None).unwrap();
+            nv.insert_number("Answer", 42u64).unwrap();
+            let packed = nv.pack().unwrap();
+            assert!(matches!(packed.unpack(NvFlag::IgnoreCase).unwrap_err(), NvError::Io(_)));
+        }
+
+        #[test]
+        fn borrowed() {
+            // Create a valid packed nvlist and clone it, just so we know it will have a different
+            // address than anything allocated by libnv.so
+            let buf = {
+                let mut nv = NvList::new(NvFlag::None).unwrap();
+                nv.insert_number("Answer", 42u64).unwrap();
+                let packed = nv.pack().unwrap();
+                let buf = unsafe { std::slice::from_raw_parts(packed.ptr as *const u8, packed.len()) };
+                buf.to_vec()
+            };
+
+            let borrowed = BorrowedPackedNvList::from_raw(&buf);
+
+            let nv2 = borrowed.unpack(NvFlag::None).unwrap();
+            assert_eq!(nv2.get_number("Answer").unwrap(), Some(42u64));
+        }
+
+        #[test]
+        fn corruption() {
+            let mut buf = [42u8; 100];
+            // PackedNvList is "corrupt"!
+            let packed = std::mem::ManuallyDrop::new(PackedNvList {
+                ptr: buf.as_mut_ptr() as *mut c_void,
+                size: 100
+            });
+            assert!(matches!(packed.unpack(NvFlag::None).unwrap_err(), NvError::Io(_)));
+            // Drop packed without running its destructor
+        }
+
+        #[test]
+        fn ok() {
+            let mut nv = NvList::new(NvFlag::None).unwrap();
+            nv.insert_number("Answer", 42u64).unwrap();
+            let packed = nv.pack().unwrap();
+            let nv2 = packed.unpack(NvFlag::None).unwrap();
+            assert_eq!(nv2.get_number("Answer").unwrap(), Some(42u64));
+        }
     }
 }
