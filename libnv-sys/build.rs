@@ -7,6 +7,7 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=LLVM_CONFIG_PATH");
     println!("cargo:rustc-link-lib=nv");
+    println!("cargo::rustc-check-cfg=cfg(crossdocs)");
     let autobindings = bindgen::Builder::default()
         .header("/usr/include/sys/nv.h")
         .allowlist_function("nvlist_.*")
@@ -67,4 +68,5 @@ fn main() {
     // variable.  We'll use it to stub out the crate well enough that
     // libnv's docs can build.
     println!("cargo:rustc-cfg=crossdocs");
+    println!("cargo::rustc-check-cfg=cfg(crossdocs)");
 }

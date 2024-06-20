@@ -8,15 +8,7 @@
 //! [libnv]: https://www.freebsd.org/cgi/man.cgi?query=nv
 //! [nvpair]: https://github.com/zfsonlinux/zfs/tree/master/module/nvpair
 
-extern crate libc;
-#[macro_use]
-extern crate quick_error;
-
-#[cfg(feature = "libnv")]
-extern crate libnv_sys;
-
-#[cfg(feature = "nvpair")]
-extern crate nvpair_sys;
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 #[cfg(feature = "libnv")]
 pub mod libnv;
@@ -27,6 +19,9 @@ pub mod nvpair;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::{ffi::NulError, io};
+
+use quick_error::quick_error;
+
 quick_error! {
     #[derive(Debug)]
     /// Error kinds for Name/Value library.
@@ -58,7 +53,7 @@ impl NvError {
         match errno {
             libc::ENOENT => NvError::NotFound,
             libc::ENOMEM => NvError::OutOfMemory,
-            45 => NvError::OperationNotSupported,
+            libc::EOPNOTSUPP => NvError::OperationNotSupported,
             n => NvError::Io(io::Error::from_raw_os_error(n)),
         }
     }

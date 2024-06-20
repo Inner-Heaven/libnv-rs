@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - Added `NvList::pack` (#50)
 
+### Bug Fixes
+
+- Fixed some error values from the nvpair module on non-FreeBSD platforms (#51)
+
 ## [0.4.2] - 2023-03-09
 
 ### Bug Fixes
