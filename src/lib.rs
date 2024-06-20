@@ -10,16 +10,6 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-extern crate libc;
-#[macro_use]
-extern crate quick_error;
-
-#[cfg(feature = "libnv")]
-extern crate libnv_sys;
-
-#[cfg(feature = "nvpair")]
-extern crate nvpair_sys;
-
 #[cfg(feature = "libnv")]
 pub mod libnv;
 
@@ -29,6 +19,9 @@ pub mod nvpair;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::{ffi::NulError, io};
+
+use quick_error::quick_error;
+
 quick_error! {
     #[derive(Debug)]
     /// Error kinds for Name/Value library.
