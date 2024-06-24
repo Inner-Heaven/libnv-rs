@@ -178,6 +178,7 @@ impl<'a> BorrowedPackedNvList<'a> {
     }
 
     /// Get the size of the packed buffer
+    #[allow(clippy::len_without_is_empty)]  // This struct should never be empty
     pub fn len(&self) -> usize {
         self.buf.len()
     }
@@ -210,6 +211,7 @@ impl PackedNvList {
     }
 
     /// Get the size of the packed buffer
+    #[allow(clippy::len_without_is_empty)]  // This struct should never be empty
     pub fn len(&self) -> usize {
         self.size
     }
