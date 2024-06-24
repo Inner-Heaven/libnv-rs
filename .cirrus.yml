@@ -35,6 +35,12 @@ task:
     image_family: freebsd-14-0-snap
   << : *FREEBSD_SETUP
   << : *BUILD_TEST
+  clippy_script:
+    - . $HOME/.cargo/env
+    - if rustc --version | grep -q nightly; then
+    -   rustup component add clippy
+    -   cargo clippy ${FEATURES} --all-targets
+    - fi
   minver_script:
     - . $HOME/.cargo/env
     - if rustc --version | grep -q nightly; then
@@ -61,7 +67,7 @@ task:
   before_cache_script: rm -rf $HOME/.cargo/registry/index
 
 task:
-  name: Linux
+  name: Linux features=nvpair
   container:
     image: rust:latest
   env:
