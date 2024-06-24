@@ -13,7 +13,5 @@
 #[cfg(not(crossdocs))]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-#[cfg(crossdocs)]
-mod fakes;
-#[cfg(crossdocs)]
-pub use fakes::*;
+#[cfg(crossdocs)] mod fakes;
+#[cfg(crossdocs)] pub use fakes::*;

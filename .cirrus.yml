@@ -80,3 +80,11 @@ task:
     - apt-get -y  install libnvpair3linux libzfslinux-dev zfsutils-linux
   << : *BUILD_TEST
   before_cache_script: rm -rf $HOME/.cargo/registry/index
+
+task:
+  name: rustfmt
+  container:
+    image: rustlang/rust:nightly
+  fmt_script:
+    - rustup component add --toolchain nightly rustfmt
+    - cargo +nightly fmt -- --check --color=never

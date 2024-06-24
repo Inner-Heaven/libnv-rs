@@ -3,15 +3,8 @@
 use nvpair_sys as sys;
 
 use crate::{IntoCStr, NvError, NvResult};
-use std::os::unix::io::AsRawFd;
-use std::{
-    collections::HashMap,
-    convert::TryInto,
-    ffi::CStr,
-    fmt::Formatter,
-    mem::MaybeUninit,
-    ptr::null_mut,
-};
+use std::{collections::HashMap, convert::TryInto, ffi::CStr, fmt::Formatter, mem::MaybeUninit,
+          os::unix::io::AsRawFd, ptr::null_mut};
 
 extern "C" {
     pub fn nvlist_print_json(fp: *mut libc::FILE, nvl: *const sys::nvlist_t) -> i32;
@@ -29,16 +22,16 @@ pub enum NvEncoding {
     /// A basic copy on insert operation.
     Native = 0,
     /// [XDR](https://tools.ietf.org/html/rfc4506) copy suitable for sending to remote host.
-    Xdr = 1,
+    Xdr    = 1,
 }
 /// Options available for creation of an `nvlist`
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
     /// No flags. Allows duplicate names of any type, but renders `get_` methods useless.
-    None = 0b000,
+    None           = 0b000,
     /// An existing pair of the same type will be removed prior inserting.
-    UniqueName = 0b001,
+    UniqueName     = 0b001,
     /// An existing pair of any type will be removed prior inserting.
     UniqueNameType = 0b010,
 }
@@ -85,63 +78,41 @@ impl Value {
 }
 
 impl From<i8> for Value {
-    fn from(src: i8) -> Self {
-        Value::Int8(src)
-    }
+    fn from(src: i8) -> Self { Value::Int8(src) }
 }
 impl From<u8> for Value {
-    fn from(src: u8) -> Self {
-        Value::Uint8(src)
-    }
+    fn from(src: u8) -> Self { Value::Uint8(src) }
 }
 impl From<i16> for Value {
-    fn from(src: i16) -> Self {
-        Value::Int16(src)
-    }
+    fn from(src: i16) -> Self { Value::Int16(src) }
 }
 impl From<u16> for Value {
-    fn from(src: u16) -> Self {
-        Value::Uint16(src)
-    }
+    fn from(src: u16) -> Self { Value::Uint16(src) }
 }
 impl From<i32> for Value {
-    fn from(src: i32) -> Self {
-        Value::Int32(src)
-    }
+    fn from(src: i32) -> Self { Value::Int32(src) }
 }
 impl From<u32> for Value {
-    fn from(src: u32) -> Self {
-        Value::Uint32(src)
-    }
+    fn from(src: u32) -> Self { Value::Uint32(src) }
 }
 impl From<i64> for Value {
-    fn from(src: i64) -> Self {
-        Value::Int64(src)
-    }
+    fn from(src: i64) -> Self { Value::Int64(src) }
 }
 impl From<u64> for Value {
-    fn from(src: u64) -> Self {
-        Value::Uint64(src)
-    }
+    fn from(src: u64) -> Self { Value::Uint64(src) }
 }
 impl From<String> for Value {
-    fn from(src: String) -> Self {
-        Value::String(src)
-    }
+    fn from(src: String) -> Self { Value::String(src) }
 }
 impl From<&str> for Value {
-    fn from(src: &str) -> Self {
-        Value::String(src.into())
-    }
+    fn from(src: &str) -> Self { Value::String(src.into()) }
 }
 pub struct NvList {
     ptr: *mut sys::nvlist_t,
 }
 
 impl Drop for NvList {
-    fn drop(&mut self) {
-        unsafe { sys::nvlist_free(self.ptr) }
-    }
+    fn drop(&mut self) { unsafe { sys::nvlist_free(self.ptr) } }
 }
 
 /// Return new list with no flags.
@@ -322,9 +293,7 @@ impl NvList {
     );
 
     /// Make a copy of a pointer. Danger zone.
-    pub fn as_ptr(&self) -> *mut sys::nvlist_t {
-        self.ptr
-    }
+    pub fn as_ptr(&self) -> *mut sys::nvlist_t { self.ptr }
 
     pub fn new(flags: NvFlag) -> NvResult<Self> {
         let mut raw_list = null_mut();
@@ -345,9 +314,7 @@ impl NvList {
     /// object.
     // Note: this cannot be `impl From<*mut nvlist_t> for Self` because that
     // trait is only for safe conversions.
-    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self {
-        Self { ptr }
-    }
+    pub unsafe fn from_ptr(ptr: *mut sys::nvlist_t) -> Self { Self { ptr } }
 
     pub fn iter(&self) -> impl Iterator<Item = NvPairRef> + '_ {
         NvListIter { list: self, position: null_mut() }
@@ -519,17 +486,11 @@ pub struct NvPairRef {
 }
 
 impl NvPairRef {
-    pub fn as_ptr(&self) -> *mut sys::nvpair_t {
-        self.ptr
-    }
+    pub fn as_ptr(&self) -> *mut sys::nvpair_t { self.ptr }
 
-    unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self {
-        Self { ptr }
-    }
+    unsafe fn from_ptr(ptr: *mut sys::nvpair_t) -> Self { Self { ptr } }
 
-    pub fn key(&self) -> &CStr {
-        unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) }
-    }
+    pub fn key(&self) -> &CStr { unsafe { CStr::from_ptr(sys::nvpair_name(self.as_ptr())) } }
 
     pub fn value(&self) -> Value {
         let data_type = unsafe { sys::nvpair_type(self.as_ptr()) };
@@ -627,7 +588,7 @@ impl std::fmt::Debug for NvPairRef {
 }
 
 pub struct NvListIter<'a> {
-    list: &'a NvList,
+    list:     &'a NvList,
     position: *mut sys::nvpair_t,
 }
 
