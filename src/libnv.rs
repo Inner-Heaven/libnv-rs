@@ -22,42 +22,40 @@ use libc::ENOMEM;
 // Importing all because it's cold, I dont want to turn on heater and it's hard
 // to type.
 use libnv_sys::*;
-use std::{
-    convert::{From, Into},
-    ffi::CStr,
-    os::raw::{c_char, c_void},
-    os::unix::io::AsRawFd,
-    slice,
-};
+use std::{convert::{From, Into},
+          ffi::CStr,
+          os::{raw::{c_char, c_void},
+               unix::io::AsRawFd},
+          slice};
 
 use crate::{IntoCStr, NvError, NvResult};
 
 /// Enumeration of available data types that the API supports.
 pub enum NvType {
     /// Empty type
-    None = 0,
+    None            = 0,
     /// There is no associated data with the name
-    Null = 1,
+    Null            = 1,
     /// The value is a `bool` value
-    Bool = 2,
+    Bool            = 2,
     /// The value is a `u64` value
-    Number = 3,
+    Number          = 3,
     /// The value is a C string
-    String = 4,
+    String          = 4,
     /// The value is another `nvlist`
-    NvList = 5,
+    NvList          = 5,
     /// The value is a file descriptor
-    Descriptor = 6,
+    Descriptor      = 6,
     /// The value is a binary buffer
-    Binary = 7,
+    Binary          = 7,
     /// The value is an array of `bool` values
-    BoolArray = 8,
+    BoolArray       = 8,
     /// The value is an array of `u64` values
-    NumberArray = 9,
+    NumberArray     = 9,
     /// The value is an array of C strings
-    StringArray = 10,
+    StringArray     = 10,
     /// The value is an array of other `nvlist`'s
-    NvListArray = 11,
+    NvListArray     = 11,
     /// The value is an array of file descriptors
     DescriptorArray = 12,
 }
@@ -67,13 +65,13 @@ pub enum NvType {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NvFlag {
     /// No user specified options.
-    None = 0,
+    None       = 0,
     /// Perform case-insensitive lookups of provided names.
     IgnoreCase = 1,
     /// Names in the nvlist do not have to be unique.
-    NoUnique = 2,
+    NoUnique   = 2,
     /// Allow duplicate case-insensitive keys.
-    Both = 3,
+    Both       = 3,
 }
 
 impl From<i32> for NvFlag {
@@ -151,37 +149,29 @@ pub struct NvList {
 /// can even be sent to a host with a different endianness.
 #[derive(Debug)]
 pub struct PackedNvList {
-    ptr: *mut c_void,
-    size: usize
+    ptr:  *mut c_void,
+    size: usize,
 }
 
 /// Like [`PackedNvList`], but it doesn't own the memory
 #[derive(Debug)]
 pub struct BorrowedPackedNvList<'a> {
-    buf: &'a [u8]
+    buf: &'a [u8],
 }
 
 impl<'a> BorrowedPackedNvList<'a> {
     /// Create a borrowed packed NvList from a Rust buffer
-    pub fn from_raw(buf: &'a [u8]) -> Self {
-        BorrowedPackedNvList{buf}
-    }
+    pub fn from_raw(buf: &'a [u8]) -> Self { BorrowedPackedNvList { buf } }
 
     /// Get a pointer to the packed buffer, for use with FFI functions.
-    pub fn as_ptr(&self) -> *const c_void {
-        self.buf.as_ptr() as *const c_void
-    }
+    pub fn as_ptr(&self) -> *const c_void { self.buf.as_ptr() as *const c_void }
 
     /// Get a mutable pointer to the packed buffer, for use with FFI functions.
-    pub fn as_mut_ptr(&mut self) -> *mut c_void {
-        self.buf.as_ptr() as *mut c_void
-    }
+    pub fn as_mut_ptr(&mut self) -> *mut c_void { self.buf.as_ptr() as *mut c_void }
 
     /// Get the size of the packed buffer
-    #[allow(clippy::len_without_is_empty)]  // This struct should never be empty
-    pub fn len(&self) -> usize {
-        self.buf.len()
-    }
+    #[allow(clippy::len_without_is_empty)] // This struct should never be empty
+    pub fn len(&self) -> usize { self.buf.len() }
 
     /// Attempt to unpack the given buffer into an [`NvList`].
     ///
@@ -189,7 +179,8 @@ impl<'a> BorrowedPackedNvList<'a> {
     /// created by this library.  Otherwise, they should refer to whatever top level nvlist is
     /// expected.
     pub fn unpack(&self, flags: NvFlag) -> NvResult<NvList> {
-        let raw = unsafe { nvlist_unpack(self.buf.as_ptr() as *const c_void, self.len(), flags as i32) };
+        let raw =
+            unsafe { nvlist_unpack(self.buf.as_ptr() as *const c_void, self.len(), flags as i32) };
         if raw.is_null() {
             let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
             Err(NvError::from_errno(errno))
@@ -201,20 +192,14 @@ impl<'a> BorrowedPackedNvList<'a> {
 
 impl PackedNvList {
     /// Get a pointer to the packed buffer, for use with FFI functions.
-    pub fn as_ptr(&self) -> *const c_void {
-        self.ptr
-    }
+    pub fn as_ptr(&self) -> *const c_void { self.ptr }
 
     /// Get a mutable pointer to the packed buffer, for use with FFI functions.
-    pub fn as_mut_ptr(&mut self) -> *mut c_void {
-        self.ptr
-    }
+    pub fn as_mut_ptr(&mut self) -> *mut c_void { self.ptr }
 
     /// Get the size of the packed buffer
-    #[allow(clippy::len_without_is_empty)]  // This struct should never be empty
-    pub fn len(&self) -> usize {
-        self.size
-    }
+    #[allow(clippy::len_without_is_empty)] // This struct should never be empty
+    pub fn len(&self) -> usize { self.size }
 
     /// Attempt to unpack the given buffer into an [`NvList`].
     ///
@@ -243,15 +228,11 @@ impl Drop for PackedNvList {
 #[doc(hidden)]
 /// Return new list with no flags.
 impl Default for NvList {
-    fn default() -> NvList {
-        NvList::new(NvFlag::None).expect("Failed to create new list")
-    }
+    fn default() -> NvList { NvList::new(NvFlag::None).expect("Failed to create new list") }
 }
 impl NvList {
     /// Make a copy of a pointer. Danger zone.
-    pub fn as_ptr(&self) -> *mut nvlist_t {
-        self.ptr
-    }
+    pub fn as_ptr(&self) -> *mut nvlist_t { self.ptr }
 
     fn check_if_error(&self) -> NvResult<()> {
         match self.error() {
@@ -286,9 +267,7 @@ impl NvList {
     /// object.
     // Note: this cannot be `impl From<*mut nvlist_t> for Self` because that
     // trait is only for safe conversions.
-    pub unsafe fn from_ptr(ptr: *mut nvlist_t) -> Self {
-        Self { ptr }
-    }
+    pub unsafe fn from_ptr(ptr: *mut nvlist_t) -> Self { Self { ptr } }
 
     /// Determines if the `nvlist` is empty.
     ///
@@ -297,9 +276,7 @@ impl NvList {
     /// let nvlist = NvList::new(NvFlag::IgnoreCase).unwrap();
     /// assert!(nvlist.is_empty());
     /// ```
-    pub fn is_empty(&self) -> bool {
-        unsafe { nvlist_empty(self.ptr) }
-    }
+    pub fn is_empty(&self) -> bool { unsafe { nvlist_empty(self.ptr) } }
 
     /// The flags the `nvlist` was created with.
     ///
@@ -309,9 +286,7 @@ impl NvList {
     ///
     /// assert_eq!(nvlist.flags(), NvFlag::NoUnique);
     /// ```
-    pub fn flags(&self) -> NvFlag {
-        NvFlag::from(unsafe { nvlist_flags(self.ptr) })
-    }
+    pub fn flags(&self) -> NvFlag { NvFlag::from(unsafe { nvlist_flags(self.ptr) }) }
 
     /// Gets error value that the list may have accumulated.
     ///
@@ -321,9 +296,7 @@ impl NvList {
     ///
     /// assert_eq!(0, list.error());
     /// ```
-    pub fn error(&self) -> i32 {
-        unsafe { nvlist_error(self.ptr) }
-    }
+    pub fn error(&self) -> i32 { unsafe { nvlist_error(self.ptr) } }
 
     /// Sets the `NvList` to be in an error state.
     ///
@@ -531,11 +504,13 @@ impl NvList {
     ///
     /// assert_eq!(*vec, ["Hello", "World!"]);
     /// ```
-    pub fn insert_strings<'a, 'b, N: IntoCStr<'a>, V: IntoCStr<'b>, I: IntoIterator<Item=V>>(&mut self, name: N, value: I) -> NvResult<()> {
+    pub fn insert_strings<'a, 'b, N: IntoCStr<'a>, V: IntoCStr<'b>, I: IntoIterator<Item = V>>(
+        &mut self,
+        name: N,
+        value: I,
+    ) -> NvResult<()> {
         let c_name = name.into_c_str()?;
-        let strings= value.into_iter()
-            .map(IntoCStr::into_c_str)
-            .collect::<NvResult<Vec<_>>>()?;
+        let strings = value.into_iter().map(IntoCStr::into_c_str).collect::<NvResult<Vec<_>>>()?;
         unsafe {
             let pointers: Vec<*const c_char> = strings.iter().map(|e| e.as_ptr()).collect();
 
@@ -872,9 +847,7 @@ impl NvList {
     }
 
     /// The size of the current list
-    pub fn len(&self) -> usize {
-        unsafe { nvlist_size(self.ptr) }
-    }
+    pub fn len(&self) -> usize { unsafe { nvlist_size(self.ptr) } }
 
     /// Removes a key from the `NvList`.
     pub fn remove<'a, N: IntoCStr<'a>>(&mut self, name: N) -> NvResult<()> {
@@ -899,10 +872,7 @@ impl NvList {
     ///
     /// See the man page for restrictions on which types of NvList may be packed.
     pub fn pack(&self) -> NvResult<PackedNvList> {
-        let mut packed = PackedNvList {
-            ptr: std::ptr::null_mut(),
-            size: 0
-        };
+        let mut packed = PackedNvList { ptr: std::ptr::null_mut(), size: 0 };
         let ptr = unsafe { nvlist_pack(self.ptr, &mut packed.size) };
         if ptr.is_null() {
             let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
@@ -916,9 +886,7 @@ impl NvList {
 
 impl Clone for NvList {
     /// Clone list using libnv method. This will perform deep copy.
-    fn clone(&self) -> NvList {
-        NvList { ptr: unsafe { nvlist_clone(self.ptr) } }
-    }
+    fn clone(&self) -> NvList { NvList { ptr: unsafe { nvlist_clone(self.ptr) } } }
 }
 
 impl Drop for NvList {
@@ -984,7 +952,8 @@ mod test {
                 let mut nv = NvList::new(NvFlag::None).unwrap();
                 nv.insert_number("Answer", 42u64).unwrap();
                 let packed = nv.pack().unwrap();
-                let buf = unsafe { std::slice::from_raw_parts(packed.ptr as *const u8, packed.len()) };
+                let buf =
+                    unsafe { std::slice::from_raw_parts(packed.ptr as *const u8, packed.len()) };
                 buf.to_vec()
             };
 
@@ -999,8 +968,8 @@ mod test {
             let mut buf = [42u8; 100];
             // PackedNvList is "corrupt"!
             let packed = std::mem::ManuallyDrop::new(PackedNvList {
-                ptr: buf.as_mut_ptr() as *mut c_void,
-                size: 100
+                ptr:  buf.as_mut_ptr() as *mut c_void,
+                size: 100,
             });
             assert!(matches!(packed.unpack(NvFlag::None).unwrap_err(), NvError::Io(_)));
             // Drop packed without running its destructor
