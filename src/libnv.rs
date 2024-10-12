@@ -1,5 +1,5 @@
 //! FreeBSD implementation of Name/value pairs library.
-
+//!
 //! All insert operation clone values using `dup(2)` system call. So you
 //! don't have to worry about the lifetime of the value. Unless you leak NvList
 //! yourself using `unsafe`
