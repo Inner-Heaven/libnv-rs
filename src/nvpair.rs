@@ -592,7 +592,7 @@ pub struct NvListIter<'a> {
     position: *mut sys::nvpair_t,
 }
 
-impl<'a> Iterator for NvListIter<'a> {
+impl Iterator for NvListIter<'_> {
     type Item = NvPairRef;
 
     fn next(&mut self) -> Option<Self::Item> {
