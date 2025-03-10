@@ -32,7 +32,7 @@ task:
       env:
         VERSION: stable
   freebsd_instance:
-    image_family: freebsd-14-0-snap
+    image_family: freebsd-14-2
   << : *FREEBSD_SETUP
   << : *BUILD_TEST
   clippy_script:
@@ -61,7 +61,7 @@ task:
       env:
         FEATURES: --no-default-features --features=nvpair
   freebsd_instance:
-    image: freebsd-13-3-release-amd64
+    image: freebsd-13-5-release-amd64
   << : *FREEBSD_SETUP
   << : *BUILD_TEST
   before_cache_script: rm -rf $HOME/.cargo/registry/index
