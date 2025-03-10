@@ -20,5 +20,5 @@ targets = [
 libc = "0.2.65"
 
 [build-dependencies]
-bindgen = { version = "0.66.1", features=[] }
+bindgen = { version = ">= 0.67.0, < 0.72.0", features=[] }
 regex = "1.6.0"
