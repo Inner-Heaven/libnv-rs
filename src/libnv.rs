@@ -433,7 +433,7 @@ impl NvList {
         size: usize,
     ) -> NvResult<()> {
         let c_name = name.into_c_str()?;
-        unsafe{
+        unsafe {
             nvlist_add_binary(self.ptr, c_name.as_ptr(), value as *const c_void, size);
         }
         self.check_if_error()
