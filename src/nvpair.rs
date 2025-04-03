@@ -6,7 +6,7 @@ use crate::{IntoCStr, NvError, NvResult};
 use std::{collections::HashMap, convert::TryInto, ffi::CStr, fmt::Formatter, mem::MaybeUninit,
           os::unix::io::AsRawFd, ptr::null_mut};
 
-extern "C" {
+unsafe extern "C" {
     pub fn nvlist_print_json(fp: *mut libc::FILE, nvl: *const sys::nvlist_t) -> i32;
 }
 /// This allows usage of insert method with basic types. Implement this for your

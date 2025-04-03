@@ -4,6 +4,7 @@ version = "0.2.2"
 authors = ["Andrey Snow <andoriyu@gmail.com>"]
 links = "libnv"
 build = "build.rs"
+edition = "2021"
 categories = ["external-ffi-bindings"]
 license = "BSD-2-Clause"
 description = "FFI bindings to libnv."
