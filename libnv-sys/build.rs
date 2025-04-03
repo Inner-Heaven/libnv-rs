@@ -18,7 +18,7 @@ fn main() {
         .blocklist_type("__size_t")
         .blocklist_type("__uint64_t")
         .opaque_type("FILE")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings")
         .to_string();
