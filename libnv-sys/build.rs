@@ -40,13 +40,12 @@ fn main() {
             "fn" => {
                 let funcname = cap.get(2).unwrap().as_str();
                 fixed_bindings.push_str(&format!("#[link_name = \"FreeBSD_{}\"]\n", funcname));
-                format!("pub fn {}", funcname)
+                format!("pub fn {funcname}")
             },
             "type" => {
                 let typename = cap.get(2).unwrap().as_str();
-                fixed_bindings
-                    .push_str(&format!("pub type FreeBSD_{} = {};\n", typename, typename));
-                format!("pub type {}", typename)
+                fixed_bindings.push_str(&format!("pub type FreeBSD_{typename} = {typename};\n"));
+                format!("pub type {typename}")
             },
             _ => unreachable!(),
         };
