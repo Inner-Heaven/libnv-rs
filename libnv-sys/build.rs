@@ -39,7 +39,7 @@ fn main() {
         let new_fragment = match cap.get(1).unwrap().as_str() {
             "fn" => {
                 let funcname = cap.get(2).unwrap().as_str();
-                fixed_bindings.push_str(&format!("#[link_name = \"FreeBSD_{}\"]\n", funcname));
+                fixed_bindings.push_str(&format!("#[link_name = \"FreeBSD_{funcname}\"]\n"));
                 format!("pub fn {funcname}")
             },
             "type" => {
