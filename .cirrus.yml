@@ -21,18 +21,15 @@ build: &BUILD_TEST
 # It's important to test on FreeBSD 14 because it has a different libnv.so
 # version than FreeBSD 13
 task:
-  name: FreeBSD 14
+  name: FreeBSD nightly
   env:
     FEATURES: --all-features
   matrix:
-    - name: FreeBSD 14 features=both nightly
+    - name: FreeBSD 15 features=both nightly
       env:
         VERSION: nightly
-    - name: FreeBSD 14 features=both stable
-      env:
-        VERSION: stable
   freebsd_instance:
-    image_family: freebsd-14-2
+    image: freebsd-15-0-release-amd64-ufs
   << : *FREEBSD_SETUP
   << : *BUILD_TEST
   clippy_script:
@@ -50,18 +47,25 @@ task:
   before_cache_script: rm -rf $HOME/.cargo/registry/index
 
 task:
-  name: FreeBSD 13
+  name: FreeBSD stable
   env:
     VERSION: stable
   matrix:
-    - name: FreeBSD 13 features=libnv stable
+    - name: FreeBSD 14 features=libnv stable
       env:
         FEATURES: --no-default-features --features=libnv
-    - name: FreeBSD 13 features=nvpair stable
+      freebsd_instance:
+        image: freebsd-14-3-release-amd64-ufs
+    - name: FreeBSD 14 features=nvpair stable
       env:
         FEATURES: --no-default-features --features=nvpair
-  freebsd_instance:
-    image: freebsd-13-5-release-amd64
+      freebsd_instance:
+        image: freebsd-14-3-release-amd64-ufs
+    - name: FreeBSD 13 features=both stable
+      env:
+        VERSION: stable
+      freebsd_instance:
+        image: freebsd-13-3-release-amd64
   << : *FREEBSD_SETUP
   << : *BUILD_TEST
   before_cache_script: rm -rf $HOME/.cargo/registry/index
