@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - freebsd_version: "15.0"
+            rust_version: nightly
+          - freebsd_version: "14.4"
+            rust_version: stable
+          - freebsd_version: "13.5"
+            rust_version: stable
+    name: FreeBSD ${{ matrix.freebsd_version }} ${{ matrix.rust_version }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Start VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: ${{ matrix.freebsd_version }}
+          usesh: true
+      - name: Install dependencies
+        shell: freebsd {0}
+        run: |
+          pkg install -y curl llvm
+          fetch https://sh.rustup.rs -o rustup.sh
+          sh rustup.sh -y --profile=minimal --default-toolchain ${{ matrix.rust_version }}
+      - name: Build
+        shell: freebsd {0}
+        run: |
+          . $HOME/.cargo/env
+          cargo build --all-features
+      - name: Test
+        shell: freebsd {0}
+        run: |
+          . $HOME/.cargo/env
+          cargo test --all-features
+      - name: Clippy
+        if: matrix.rust_version == 'nightly'
+        shell: freebsd {0}
+        run: |
+          . $HOME/.cargo/env
+          rustup component add clippy
+          cargo clippy --all-targets --all-features -- -D warnings
+      - name: Hack
+        if: matrix.rust_version == 'nightly'
+        shell: freebsd {0}
+        run: |
+          . $HOME/.cargo/env
+          curl -LsSf https://github.com/taiki-e/cargo-hack/releases/latest/download/cargo-hack-x86_64-unknown-freebsd.tar.gz | tar xzf - -C ~/.cargo/bin
+          cargo hack check --feature-powerset
+      - name: Minver
+        if: matrix.rust_version == 'nightly'
+        shell: freebsd {0}
+        run: |
+          . $HOME/.cargo/env
+          cargo update -Zdirect-minimal-versions
+          cargo check --all-targets --all-features
+
+  linux:
+    runs-on: ubuntu-latest
+    name: Linux
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        run: |
+          sudo add-apt-repository ppa:zfs-native/stable
+          sudo apt-get -y install libnvpair3linux libzfslinux-dev zfsutils-linux
+      - name: Build
+        run: |
+          cargo build --no-default-features --features=nvpair
+      - name: Test
+        run: |
+          cargo test --no-default-features --features=nvpair
+
+  fmt:
+    runs-on: ubuntu-latest
+    name: rustfmt
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install rustfmt
+        run: |
+          rustup component add --toolchain nightly rustfmt
+      - name: Check formatting
+        run: |
+          cargo +nightly fmt -- --check --color=never
