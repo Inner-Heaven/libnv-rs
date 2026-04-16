@@ -8,9 +8,16 @@ All notable changes to this project will be documented in this file.
 
 - Added `NvList::pack` (#50)
 
+- bindgen is no longer necessary to build libnv-sys.  Therefore, clang and llvm
+  are no longer required to be installed. (#66)
+
 ### Bug Fixes
 
 - Fixed some error values from the nvpair module on non-FreeBSD platforms (#51)
+
+### Removed
+
+- Removed support for FreeBSD 13 and older. #(66)
 
 ## [0.4.2] - 2023-03-09
 

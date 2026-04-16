@@ -19,8 +19,6 @@ jobs:
             rust_version: nightly
           - freebsd_version: "14.4"
             rust_version: stable
-          - freebsd_version: "13.5"
-            rust_version: stable
     name: FreeBSD ${{ matrix.freebsd_version }} ${{ matrix.rust_version }}
     steps:
       - uses: actions/checkout@v6
@@ -32,7 +30,7 @@ jobs:
       - name: Install dependencies
         shell: freebsd {0}
         run: |
-          pkg install -y curl llvm
+          pkg install -y curl
           fetch https://sh.rustup.rs -o rustup.sh
           sh rustup.sh -y --profile=minimal --default-toolchain ${{ matrix.rust_version }}
       - name: Build
