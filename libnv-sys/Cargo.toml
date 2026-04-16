@@ -19,7 +19,3 @@ targets = [
 
 [dependencies]
 libc = "0.2.65"
-
-[build-dependencies]
-bindgen = { version = ">= 0.69.0, < 0.73.0", features=[] }
-regex = "1.6.0"
