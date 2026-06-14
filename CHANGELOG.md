@@ -2,22 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - ReleaseDate
+## [0.5.0] - ReleaseDate
 
 ### Features
 
-- Added `NvList::pack` (#50)
+- Added `NvList::pack` and `NvList::unpack`, along with `PackedNvList`, to
+  serialize and deserialize nvlists (needed by APIs such as FreeBSD's ctl
+  ioctls) (#50)
 
 - bindgen is no longer necessary to build libnv-sys.  Therefore, clang and llvm
   are no longer required to be installed. (#66)
+
+- Added forward compatibility with the 2024 edition (#57)
 
 ### Bug Fixes
 
 - Fixed some error values from the nvpair module on non-FreeBSD platforms (#51)
 
+- Fixed the build with `-Zdirect-minimal-versions` (#45, #63)
+
+### Documentation
+
+- docs.rs now builds the documentation for the main supported platforms and
+  labels each module with its required cfg features (#47)
+
+- Fixed the docstring for the libnv module (#54)
+
+### Changed
+
+- The minimum supported Rust version is now 1.77.0.  The crate uses native
+  `CStr` literals, which makes `save_as_json` more efficient. (#46)
+
 ### Removed
 
-- Removed support for FreeBSD 13 and older. #(66)
+- Removed support for FreeBSD 13 and older. (#66)
+
+## [0.4.3] - 2023-07-27
+
+### Miscellaneous Tasks
+
+- Widened the `bindgen` build requirement (#33, #36)
+
+- Updated CI to FreeBSD 13.2-RELEASE (#34)
 
 ## [0.4.2] - 2023-03-09
 
