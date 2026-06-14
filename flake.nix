@@ -7,44 +7,37 @@
       url = "github:oxalica/rust-overlay";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
-    andoriyu = {
-      url = "github:andoriyu/flakes";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        rust-overlay.follows = "rust-overlay";
-        flake-utils.follows = "flake-utils";
-        devshell.follows = "devshell";
       };
     };
     devshell = {
-      url = "github:numtide/devshell/master";
+      url = "github:numtide/devshell";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
       };
     };
   };
-  outputs =
-    { self, nixpkgs, rust-overlay, flake-utils, andoriyu, devshell, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        cwd = builtins.toString ./.;
-        overlays = [ devshell.overlay rust-overlay.overlay andoriyu.overlay andoriyu.overlays.rust-analyzer ];
-        pkgs = import nixpkgs { inherit system overlays; };
-        rust = pkgs.rust-bin.fromRustupToolchainFile "${cwd}/rust-toolchain.toml";
-      in with pkgs; {
+  outputs = {
+    self,
+    nixpkgs,
+    rust-overlay,
+    flake-utils,
+    devshell,
+    ...
+  }:
+    flake-utils.lib.eachDefaultSystem (system: let
+      cwd = builtins.toString ./.;
+      overlays = [devshell.overlays.default rust-overlay.overlays.default];
+      pkgs = import nixpkgs {inherit system overlays;};
+      rust = pkgs.rust-bin.fromRustupToolchainFile "${cwd}/rust-toolchain.toml";
+    in
+      with pkgs; {
         devShell = clangStdenv.mkDerivation rec {
-        name = "rust";
-        nativeBuildInputs = [
-            bacon
+          name = "rust";
+          nativeBuildInputs = [
             binutils
             cargo-cache
             cargo-deny
-            cargo-diet
-            cargo-expand-nightly
+            cargo-expand
             cargo-outdated
             cargo-sort
             cargo-sweep
@@ -53,16 +46,13 @@
             cmake
             git-cliff
             gnumake
-            pkgconfig
+            pkg-config
             rust
-            rusty-man
-            vagrant
             just
             zlib
-        ];
-        PROJECT_ROOT = builtins.toString ./.;
-        RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
+          ];
+          PROJECT_ROOT = builtins.toString ./.;
+          RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
         };
       });
 }
-
