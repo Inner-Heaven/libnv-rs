@@ -17,7 +17,6 @@ pub struct FreeBSD_nvlist {
 }
 pub type FreeBSD_nvlist_t = nvlist_t;
 pub type nvlist_t = FreeBSD_nvlist;
-pub type va_list = __builtin_va_list;
 pub type FILE = __BindgenOpaqueArray<u64, 39usize>;
 unsafe extern "C" {
     #[link_name = "FreeBSD_nvlist_create"]
@@ -258,15 +257,6 @@ unsafe extern "C" {
         name: *const ::std::os::raw::c_char,
         valuefmt: *const ::std::os::raw::c_char,
         ...
-    );
-}
-unsafe extern "C" {
-    #[link_name = "FreeBSD_nvlist_add_stringv"]
-    pub fn nvlist_add_stringv(
-        nvl: *mut FreeBSD_nvlist_t,
-        name: *const ::std::os::raw::c_char,
-        valuefmt: *const ::std::os::raw::c_char,
-        valueap: *mut __va_list_tag,
     );
 }
 unsafe extern "C" {
@@ -702,25 +692,3 @@ unsafe extern "C" {
         name: *const ::std::os::raw::c_char,
     );
 }
-pub type __builtin_va_list = [__va_list_tag; 1usize];
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __va_list_tag {
-    pub gp_offset: ::std::os::raw::c_uint,
-    pub fp_offset: ::std::os::raw::c_uint,
-    pub overflow_arg_area: *mut ::std::os::raw::c_void,
-    pub reg_save_area: *mut ::std::os::raw::c_void,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of __va_list_tag"][::std::mem::size_of::<__va_list_tag>() - 24usize];
-    ["Alignment of __va_list_tag"][::std::mem::align_of::<__va_list_tag>() - 8usize];
-    ["Offset of field: __va_list_tag::gp_offset"]
-        [::std::mem::offset_of!(__va_list_tag, gp_offset) - 0usize];
-    ["Offset of field: __va_list_tag::fp_offset"]
-        [::std::mem::offset_of!(__va_list_tag, fp_offset) - 4usize];
-    ["Offset of field: __va_list_tag::overflow_arg_area"]
-        [::std::mem::offset_of!(__va_list_tag, overflow_arg_area) - 8usize];
-    ["Offset of field: __va_list_tag::reg_save_area"]
-        [::std::mem::offset_of!(__va_list_tag, reg_save_area) - 16usize];
-};

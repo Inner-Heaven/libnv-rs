@@ -20,10 +20,7 @@ extern "C" {
         _: ::std::os::raw::c_int,
     );
     pub fn nvlist_size(_: *const FreeBSD_nvlist_t) -> usize;
-    pub fn nvlist_pack(
-        _: *const FreeBSD_nvlist_t,
-        _: *mut usize,
-    ) -> *mut ::std::os::raw::c_void;
+    pub fn nvlist_pack(_: *const FreeBSD_nvlist_t, _: *mut usize) -> *mut ::std::os::raw::c_void;
     pub fn nvlist_unpack(
         _: *const ::std::os::raw::c_void,
         _: usize,

@@ -16,10 +16,18 @@ jobs:
       matrix:
         include:
           - freebsd_version: "15.0"
+            target: x86_64-unknown-freebsd
             rust_version: nightly
+            zflags: ""
           - freebsd_version: "14.4"
+            target: x86_64-unknown-freebsd
             rust_version: stable
-    name: FreeBSD ${{ matrix.freebsd_version }} ${{ matrix.rust_version }}
+            zflags: ""
+          - freebsd_version: "14.4"
+            target: i686-unknown-freebsd
+            rust_version: nightly
+            zflags: "-Z build-std"
+    name: FreeBSD ${{ matrix.freebsd_version }} ${{ matrix.target }} ${{ matrix.rust_version }}
     steps:
       - uses: actions/checkout@v6
       - name: Start VM
@@ -32,33 +40,39 @@ jobs:
         run: |
           pkg install -y curl
           fetch https://sh.rustup.rs -o rustup.sh
-          sh rustup.sh -y --profile=minimal --default-toolchain ${{ matrix.rust_version }}
+          sh rustup.sh -y --default-toolchain ${{ matrix.rust_version }}
+      - name: Install rust-src
+        if: matrix.zflags != ''
+        shell: freebsd {0}
+        run: |
+          . $HOME/.cargo/env
+          rustup component add rust-src
       - name: Build
         shell: freebsd {0}
         run: |
           . $HOME/.cargo/env
-          cargo build --all-features
+          cargo build ${{ matrix.zflags }} --all-features
       - name: Test
         shell: freebsd {0}
         run: |
           . $HOME/.cargo/env
-          cargo test --all-features
+          cargo test ${{ matrix.zflags }} --all-features
       - name: Clippy
-        if: matrix.rust_version == 'nightly'
+        if: matrix.rust_version == 'nightly' && matrix.zflags == ''
         shell: freebsd {0}
         run: |
           . $HOME/.cargo/env
           rustup component add clippy
           cargo clippy --all-targets --all-features -- -D warnings
       - name: Hack
-        if: matrix.rust_version == 'nightly'
+        if: matrix.rust_version == 'nightly' && matrix.zflags == ''
         shell: freebsd {0}
         run: |
           . $HOME/.cargo/env
           curl -LsSf https://github.com/taiki-e/cargo-hack/releases/latest/download/cargo-hack-x86_64-unknown-freebsd.tar.gz | tar xzf - -C ~/.cargo/bin
           cargo hack check --feature-powerset
       - name: Minver
-        if: matrix.rust_version == 'nightly'
+        if: matrix.rust_version == 'nightly' && matrix.zflags == ''
         shell: freebsd {0}
         run: |
           . $HOME/.cargo/env
