@@ -15,11 +15,11 @@ If you have FreeBSD you already have library available in base system. On linux,
 
 ```
 [dependencies]
-libnv= "0.5.0"
+libnv= "0.5.1"
 ```
 ## Usage
 Read the [docs](https://docs.rs/libnv).
 
 
 [man]: https://www.freebsd.org/cgi/man.cgi?query=nv
-[types]: https://docs.rs/libnv/0.5.0/libnv/enum.NvType.html#variants
+[types]: https://docs.rs/libnv/0.5.1/libnv/enum.NvType.html#variants
