@@ -2,7 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - ReleaseDAte
+## [Unreleased] - ReleaseDate
+
+## [0.5.1] - 2025-06-16
 
 ### Bug Fixes
 
