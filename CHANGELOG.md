@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+### Bug Fixes
+
+- Fixed the documentation on docs.rs (#71)
+
 ## [0.5.1] - 2025-06-16
 
 ### Bug Fixes

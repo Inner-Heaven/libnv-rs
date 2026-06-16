@@ -8,7 +8,7 @@
 //! [libnv]: https://www.freebsd.org/cgi/man.cgi?query=nv
 //! [nvpair]: https://github.com/zfsonlinux/zfs/tree/master/module/nvpair
 
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "libnv")] pub mod libnv;
 
