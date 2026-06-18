@@ -1,6 +1,7 @@
 ![libnv](libnv.png)
 
-[![Crates.io](https://img.shields.io/crates/v/libnv.svg)](https://crates.io/crates/libnv)
+![Crates.io Version](https://img.shields.io/crates/v/libnv)
+
 > Rust bindings to libnv and nbpairs.
 
 ## What's that?
@@ -22,4 +23,4 @@ Read the [docs](https://docs.rs/libnv).
 
 
 [man]: https://www.freebsd.org/cgi/man.cgi?query=nv
-[types]: https://docs.rs/libnv/0.5.1/libnv/enum.NvType.html#variants
+[types]: https://docs.rs/libnv/0.5.2/libnv/enum.NvType.html#variants
