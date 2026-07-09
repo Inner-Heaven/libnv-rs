@@ -49,6 +49,7 @@ pub enum Value {
     Int64(i64),
     Uint64(u64),
     String(String),
+    NvList(NvList),
 }
 
 impl Value {
@@ -107,6 +108,10 @@ impl From<String> for Value {
 impl From<&str> for Value {
     fn from(src: &str) -> Self { Value::String(src.into()) }
 }
+impl From<NvList> for Value {
+    fn from(src: NvList) -> Self { Value::NvList(src) }
+}
+#[derive(Eq, PartialEq)]
 pub struct NvList {
     ptr: *mut sys::nvlist_t,
 }
@@ -209,6 +214,17 @@ macro_rules! nvpair_type_method {
             }
         }
     };
+}
+
+impl Clone for NvList {
+    fn clone(&self) -> Self {
+        let mut new = null_mut();
+        unsafe {
+            sys::nvlist_dup(self.as_ptr(), &mut new, 0);
+
+            NvList::from_ptr(new)
+        }
+    }
 }
 
 impl NvList {
@@ -443,6 +459,30 @@ impl NvList {
         self.get_cstr(name).and_then(|v| v.to_str().map_err(NvError::from))
     }
 
+    /// Add an NvList to the list.
+    pub fn insert_nvlist<'a, N: IntoCStr<'a>>(&mut self, name: N, value: &NvList) -> NvResult<()> {
+        let c_name = name.into_c_str()?;
+        let errno = unsafe { sys::nvlist_add_nvlist(self.ptr, c_name.as_ptr(), value.as_ptr()) };
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Get an `NvList` from the list.
+    pub fn get_nvlist<'a, N: IntoCStr<'a>>(&self, name: N) -> NvResult<NvList> {
+        let c_name = name.into_c_str()?;
+        let mut ptr = null_mut();
+        let errno = unsafe { sys::nvlist_lookup_nvlist(self.ptr, c_name.as_ptr(), &mut ptr) };
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            let ret = unsafe { NvList::from_ptr(ptr) };
+            Ok(ret)
+        }
+    }
+
     /// Turn NvPair into json representation. This method uses libnvpair to do so.
     pub fn save_as_json<F: AsRawFd>(&self, output: F) -> NvResult<()> {
         let mode = c"w";
@@ -469,6 +509,7 @@ impl_list_op! {u32, insert_u32, false}
 impl_list_op! {i64, insert_i64, false}
 impl_list_op! {u64, insert_u64, false}
 impl_list_op! {&str, insert_string, false}
+impl_list_op! {&NvList, insert_nvlist, false}
 
 impl std::fmt::Debug for NvList {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -576,6 +617,15 @@ impl NvPairRef {
                 };
 
                 Value::String(v.to_string_lossy().to_string())
+            },
+            sys::data_type_t::DATA_TYPE_NVLIST => {
+                let v = unsafe {
+                    let mut ptr = null_mut();
+                    sys::nvpair_value_nvlist(self.as_ptr(), &mut ptr);
+                    NvList::from_ptr(ptr)
+                };
+
+                Value::NvList(v)
             },
             _ => Value::Unknown,
         }
@@ -687,6 +737,15 @@ mod test {
     fn nvop_u64() {
         let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
         list.insert("works", 5).unwrap();
+        assert!(list.exists("works").unwrap());
+    }
+
+    #[test]
+    fn nvop_nvlist() {
+        let mut inner = NvList::new(NvFlag::UniqueNameType).unwrap();
+        inner.insert_i64("inner", 6).unwrap();
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert("works", &inner).unwrap();
         assert!(list.exists("works").unwrap());
     }
 
@@ -856,6 +915,18 @@ mod test {
         let ret = list.get_u64_array("works").unwrap();
         assert_eq!(4, ret.len());
         assert_eq!(&val, &ret);
+    }
+
+    #[test]
+    fn cr_nvlist() {
+        let mut inner = NvList::new(NvFlag::UniqueNameType).unwrap();
+        inner.insert_i64("inner", 6).unwrap();
+        let mut list = NvList::new(NvFlag::UniqueNameType).unwrap();
+        list.insert_nvlist("works", &inner).unwrap();
+        assert!(list.exists("works").unwrap());
+        let inner = list.get_nvlist("works").unwrap();
+        let ret = inner.get_i64("inner").unwrap();
+        assert_eq!(6, ret);
     }
 
     #[test]
