@@ -3,8 +3,14 @@
 use nvpair_sys as sys;
 
 use crate::{IntoCStr, NvError, NvResult};
-use std::{collections::HashMap, convert::TryInto, ffi::CStr, fmt::Formatter, mem::MaybeUninit,
-          os::unix::io::AsRawFd, ptr::null_mut};
+use std::{collections::HashMap,
+          convert::TryInto,
+          ffi::CStr,
+          fmt::Formatter,
+          mem::MaybeUninit,
+          os::{raw::{c_char, c_void},
+               unix::io::AsRawFd},
+          ptr::null_mut};
 
 unsafe extern "C" {
     pub fn nvlist_print_json(fp: *mut libc::FILE, nvl: *const sys::nvlist_t) -> i32;
@@ -457,6 +463,23 @@ impl NvList {
             Ok(())
         }
     }
+
+    /// Attempt to pack this [`NvList`] into a serialized form.
+    ///
+    /// When created with [`NvEncoding::Xdr`], it can be sent to a host with differing
+    /// endianness.
+    pub fn pack(&self, encoding: NvEncoding) -> NvResult<PackedNvList> {
+        let mut siz: u64 = 0;
+        let mut buf = null_mut();
+        let errno = unsafe {
+            sys::nvlist_pack(self.as_ptr(), &raw mut buf, &raw mut siz, encoding as i32, 0)
+        };
+        if errno != 0 {
+            return Err(NvError::from_errno(errno));
+        }
+
+        Ok(PackedNvList { buf: buf.cast::<c_void>(), buflen: siz })
+    }
 }
 
 impl_list_op! {bool, insert_boolean_value, false}
@@ -604,6 +627,45 @@ impl Iterator for NvListIter<'_> {
             Some(unsafe { NvPairRef::from_ptr(next) })
         }
     }
+}
+
+/// A packed [`NvList`]
+///
+/// This buffer holds an NvList that has been packed into a form suitable for serialization. When
+/// constructed with the [`NvEncoding::Xdr`] flag, it can even be sent to a host with a different
+/// endianness.
+pub struct PackedNvList {
+    buf:    *mut c_void,
+    buflen: u64,
+}
+
+impl PackedNvList {
+    /// Get a pointer to the packed buffer, for use with FFI functions.
+    pub fn as_ptr(&self) -> *const c_void { self.buf }
+
+    /// Get a mutable pointer to the packed buffer, for use with FFI functions.
+    pub fn as_mut_ptr(&self) -> *const c_void { self.buf }
+
+    /// Get the size of the packed buffer.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize { self.buflen as usize }
+
+    /// Attempt to unpack the given buffer into an [`NvList`].
+    pub fn unpack(&mut self) -> NvResult<NvList> {
+        let mut nvl = null_mut();
+        let errno =
+            unsafe { sys::nvlist_unpack(self.buf.cast::<c_char>(), self.buflen, &raw mut nvl, 0) };
+
+        if errno != 0 {
+            Err(NvError::from_errno(errno))
+        } else {
+            Ok(unsafe { NvList::from_ptr(nvl) })
+        }
+    }
+}
+
+impl Drop for PackedNvList {
+    fn drop(&mut self) { unsafe { libc::free(self.buf.cast::<c_void>()) }; }
 }
 
 #[cfg(test)]
@@ -920,5 +982,18 @@ mod test {
         expected_map.insert(String::from("borrowed"), Value::from(2u32));
 
         assert_eq!(expected_map, list.into_hashmap());
+    }
+
+    #[test]
+    fn pack_unpack() {
+        let mut list = NvList::default();
+        list.insert("foo", "bar").unwrap();
+        list.insert("baz", "quux").unwrap();
+
+        let mut packed = list.pack(NvEncoding::Native).unwrap();
+        let newlist = packed.unpack().unwrap();
+
+        assert_eq!(list.get_str("foo").unwrap(), newlist.get_str("foo").unwrap());
+        assert_eq!(list.get_str("baz").unwrap(), newlist.get_str("baz").unwrap());
     }
 }
