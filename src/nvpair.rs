@@ -640,6 +640,12 @@ pub struct PackedNvList {
 }
 
 impl PackedNvList {
+    /// Create a [`PackedNvList`] from a buffer and a size
+    ///
+    /// This effectively takes ownership of the buffer, which will be freed when
+    /// [`PackedNvList::drop`] is called.
+    pub fn from_raw(buf: *mut c_void, buflen: u64) -> Self { PackedNvList { buf, buflen } }
+
     /// Get a pointer to the packed buffer, for use with FFI functions.
     pub fn as_ptr(&self) -> *const c_void { self.buf }
 
